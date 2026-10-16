@@ -51,6 +51,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+  - (dist) esteira ci/cd para banca e publicacao de apk na patilera (closes #7)
   - (mobile) app flutter com galeria e offload inteligente de 15 dias (closes #5)
   - (infra) conteinerizacao estatica e stack no obizero com caddy (closes #6)
   - (ai) busca semantica em imagens com vetores e fusao rrf (closes #4)
