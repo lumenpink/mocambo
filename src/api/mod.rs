@@ -38,6 +38,10 @@ pub struct SearchQuery {
 
 pub fn router(state: AppState) -> Router {
     Router::new()
+        .route("/", get(crate::web_ui::web_ui_handler))
+        .route("/ui", get(crate::web_ui::web_ui_handler))
+        .route("/api/files", get(crate::web_ui::list_files_handler))
+        .route("/raw/{*path}", get(crate::web_ui::raw_file_handler))
         .route("/health", get(healthcheck))
         .route("/api/search", get(search_handler))
         .route(
