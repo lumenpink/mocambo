@@ -4,6 +4,8 @@
 /node_modules/
 /dist/
 /build/
+mobile/build/
+*.apk
 
 # Caches e arquivos temporários
 .cache/
