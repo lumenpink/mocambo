@@ -1,14 +1,31 @@
-use crate::db::Database;
+use crate::config::Config;
+use crate::db::{Database, ShareRecord};
+use crate::fuxico::{FuxicoClient, FuxicoShareRequest};
+use axum::body::Body;
 use axum::extract::{Path, State};
-use axum::http::StatusCode;
-use axum::response::{IntoResponse, Json};
-use axum::routing::get;
+use axum::http::header::{CONTENT_DISPOSITION, CONTENT_LENGTH, CONTENT_TYPE};
+use axum::http::{HeaderMap, HeaderValue, StatusCode};
+use axum::response::{IntoResponse, Json, Response};
+use axum::routing::{delete, get, post};
 use axum::Router;
+use serde::Deserialize;
 use serde_json::json;
+use sha2::Digest;
+use std::sync::Arc;
+use std::time::{SystemTime, UNIX_EPOCH};
+use tokio_util::io::ReaderStream;
 
 #[derive(Clone)]
 pub struct AppState {
     pub db: Database,
+    pub config: Config,
+    pub fuxico: Arc<FuxicoClient>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct CreateSharePayload {
+    pub storage_path: String,
+    pub ttl: Option<String>,
 }
 
 pub fn router(state: AppState) -> Router {
@@ -18,6 +35,9 @@ pub fn router(state: AppState) -> Router {
             "/api/files/check/{hash}",
             get(check_file_get).head(check_file_head),
         )
+        .route("/api/shares", post(create_share_handler))
+        .route("/api/shares/{token}", delete(revoke_share_handler))
+        .route("/api/internal/stream/{token}", get(stream_share_handler))
         .with_state(state)
 }
 
@@ -59,15 +79,204 @@ async fn check_file_get(
                 "mtime": record.mtime,
                 "analysis_status": record.analysis_status,
             })),
-        )
-            .into_response(),
+        ),
         _ => (
             StatusCode::NOT_FOUND,
             Json(json!({
                 "exists": false,
-                "error": "File not found"
+                "error": "Arquivo não encontrado para este hash SHA-256"
             })),
-        )
-            .into_response(),
+        ),
     }
+}
+
+async fn create_share_handler(
+    State(state): State<AppState>,
+    Json(payload): Json<CreateSharePayload>,
+) -> Result<impl IntoResponse, (StatusCode, Json<serde_json::Value>)> {
+    let file = state
+        .db
+        .get_file_by_storage_path(&payload.storage_path)
+        .map_err(|e| {
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(json!({ "error": e.to_string() })),
+            )
+        })?
+        .ok_or_else(|| {
+            (
+                StatusCode::NOT_FOUND,
+                Json(json!({ "error": "Arquivo não encontrado no storage do Mocambo" })),
+            )
+        })?;
+
+    let now_nanos = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_nanos();
+    let now_secs = (now_nanos / 1_000_000_000) as i64;
+
+    let mut hasher = sha2::Sha256::new();
+    hasher.update(now_nanos.to_le_bytes());
+    hasher.update(payload.storage_path.as_bytes());
+    let hash = hex::encode(hasher.finalize());
+    let token = format!("moca_tok_{}", &hash[..32]);
+
+    let stream_url = format!(
+        "{}/api/internal/stream/{}",
+        state.config.mocambo_internal_url.trim_end_matches('/'),
+        token
+    );
+
+    let fux_req = FuxicoShareRequest {
+        file_name: file.file_name.clone(),
+        file_size: file.file_size,
+        mime_type: file.mime_type.clone(),
+        mocambo_token: token.clone(),
+        mocambo_stream_url: stream_url,
+        ttl: payload.ttl,
+    };
+
+    let fux_resp = state.fuxico.create_share(&fux_req).await.map_err(|e| {
+        (
+            StatusCode::BAD_GATEWAY,
+            Json(json!({ "error": format!("Falha ao registrar share no Fuxico: {}", e) })),
+        )
+    })?;
+
+    let share_record = ShareRecord {
+        id: format!("share_{}", &hash[..16]),
+        token: token.clone(),
+        user_id: file.user_id,
+        storage_path: file.storage_path.clone(),
+        fuxico_slug: fux_resp.slug.clone(),
+        fuxico_url: fux_resp.url.clone(),
+        created_at: now_secs,
+        expires_at: None,
+        status: "active".to_string(),
+    };
+
+    state.db.create_share(&share_record).map_err(|e| {
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(json!({ "error": e.to_string() })),
+        )
+    })?;
+
+    Ok((
+        StatusCode::CREATED,
+        Json(json!({
+            "token": token,
+            "storage_path": file.storage_path,
+            "fuxico_slug": fux_resp.slug,
+            "fuxico_url": fux_resp.url,
+            "created_at": now_secs
+        })),
+    ))
+}
+
+async fn revoke_share_handler(
+    State(state): State<AppState>,
+    Path(token): Path<String>,
+) -> Result<impl IntoResponse, (StatusCode, Json<serde_json::Value>)> {
+    let share = state
+        .db
+        .get_share_by_token(&token)
+        .map_err(|e| {
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(json!({ "error": e.to_string() })),
+            )
+        })?
+        .ok_or_else(|| {
+            (
+                StatusCode::NOT_FOUND,
+                Json(json!({ "error": "Compartilhamento não encontrado" })),
+            )
+        })?;
+
+    let _ = state.fuxico.revoke_share(&share.fuxico_slug).await;
+
+    state.db.revoke_share(&token).map_err(|e| {
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(json!({ "error": e.to_string() })),
+        )
+    })?;
+
+    Ok((
+        StatusCode::OK,
+        Json(json!({
+            "success": true,
+            "token": token
+        })),
+    ))
+}
+
+async fn stream_share_handler(
+    State(state): State<AppState>,
+    Path(token): Path<String>,
+) -> Result<Response, (StatusCode, &'static str)> {
+    let share = state
+        .db
+        .get_share_by_token(&token)
+        .map_err(|_| (StatusCode::INTERNAL_SERVER_ERROR, "Database error"))?
+        .ok_or((StatusCode::NOT_FOUND, "Share not found"))?;
+
+    if share.status != "active" {
+        return Err((StatusCode::GONE, "Share revoked or expired"));
+    }
+
+    let now_secs = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_secs() as i64;
+
+    if let Some(exp) = share.expires_at {
+        if exp <= now_secs {
+            let _ = state.db.revoke_share(&token);
+            return Err((StatusCode::GONE, "Share expired"));
+        }
+    }
+
+    let abs_path = state.config.storage_dir.join(&share.storage_path);
+    if !abs_path.exists() {
+        return Err((StatusCode::NOT_FOUND, "Physical file not found"));
+    }
+
+    let file = tokio::fs::File::open(&abs_path)
+        .await
+        .map_err(|_| (StatusCode::INTERNAL_SERVER_ERROR, "Cannot open file"))?;
+    let metadata = file.metadata().await.map_err(|_| {
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "Cannot read file metadata",
+        )
+    })?;
+
+    let mime = mime_guess::from_path(&abs_path)
+        .first_or_octet_stream()
+        .to_string();
+
+    let filename = abs_path
+        .file_name()
+        .and_then(|n| n.to_str())
+        .unwrap_or("file");
+
+    let stream = ReaderStream::new(file);
+    let body = Body::from_stream(stream);
+
+    let mut headers = HeaderMap::new();
+    if let Ok(v) = HeaderValue::from_str(&mime) {
+        headers.insert(CONTENT_TYPE, v);
+    }
+    if let Ok(v) = HeaderValue::from_str(&metadata.len().to_string()) {
+        headers.insert(CONTENT_LENGTH, v);
+    }
+    let disposition = format!("inline; filename=\"{}\"", filename);
+    if let Ok(v) = HeaderValue::from_str(&disposition) {
+        headers.insert(CONTENT_DISPOSITION, v);
+    }
+
+    Ok((headers, body).into_response())
 }

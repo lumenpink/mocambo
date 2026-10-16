@@ -5,6 +5,9 @@ pub struct Config {
     pub storage_dir: PathBuf,
     pub db_path: PathBuf,
     pub bind_addr: String,
+    pub fuxico_base_url: String,
+    pub fuxico_api_token: String,
+    pub mocambo_internal_url: String,
 }
 
 impl Config {
@@ -20,6 +23,9 @@ impl Config {
             storage_dir,
             db_path,
             bind_addr: "127.0.0.1:0".to_string(),
+            fuxico_base_url: "https://2lp.in".to_string(),
+            fuxico_api_token: "".to_string(),
+            mocambo_internal_url: "http://127.0.0.1:8080".to_string(),
         }
     }
 
@@ -32,6 +38,11 @@ impl Config {
             .unwrap_or_else(|_| PathBuf::from("./data/mocambo.db"));
         let bind_addr =
             std::env::var("MOCAMBO_BIND_ADDR").unwrap_or_else(|_| "0.0.0.0:8080".to_string());
+        let fuxico_base_url = std::env::var("MOCAMBO_FUXICO_BASE_URL")
+            .unwrap_or_else(|_| "https://2lp.in".to_string());
+        let fuxico_api_token = std::env::var("MOCAMBO_FUXICO_API_TOKEN").unwrap_or_default();
+        let mocambo_internal_url = std::env::var("MOCAMBO_INTERNAL_URL")
+            .unwrap_or_else(|_| "http://127.0.0.1:8080".to_string());
 
         if let Some(parent) = db_path.parent() {
             let _ = std::fs::create_dir_all(parent);
@@ -44,6 +55,9 @@ impl Config {
             storage_dir,
             db_path,
             bind_addr,
+            fuxico_base_url,
+            fuxico_api_token,
+            mocambo_internal_url,
         }
     }
 }

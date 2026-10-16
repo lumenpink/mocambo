@@ -22,10 +22,20 @@ pub struct InterceptingFs {
     db: Database,
     root: PathBuf,
     user_id: String,
+    fuxico: Option<Arc<crate::fuxico::FuxicoClient>>,
 }
 
 impl InterceptingFs {
     pub fn new(root: PathBuf, db: Database, user_id: String) -> Box<Self> {
+        Self::new_with_fuxico(root, db, user_id, None)
+    }
+
+    pub fn new_with_fuxico(
+        root: PathBuf,
+        db: Database,
+        user_id: String,
+        fuxico: Option<Arc<crate::fuxico::FuxicoClient>>,
+    ) -> Box<Self> {
         let local_box = LocalFs::new(&root, false, false, false);
         let inner = Arc::new(*local_box);
         Box::new(Self {
@@ -33,6 +43,7 @@ impl InterceptingFs {
             db,
             root,
             user_id,
+            fuxico,
         })
     }
 }
@@ -89,7 +100,19 @@ impl DavFileSystem for InterceptingFs {
     fn remove_file<'a>(&'a self, path: &'a DavPath) -> FsFuture<'a, ()> {
         async move {
             self.inner.remove_file(path).await?;
-            let _ = self.db.remove_file_by_path(&path.as_url_string());
+            let path_str = path.as_url_string();
+            let _ = self.db.remove_file_by_path(&path_str);
+            if let Ok(shares) = self.db.get_shares_by_storage_path(&path_str) {
+                for s in shares {
+                    let _ = self.db.revoke_share(&s.token);
+                    if let Some(fuxico) = &self.fuxico {
+                        let fuxico = fuxico.clone();
+                        tokio::spawn(async move {
+                            let _ = fuxico.revoke_share(&s.fuxico_slug).await;
+                        });
+                    }
+                }
+            }
             Ok(())
         }
         .boxed()
@@ -106,6 +129,17 @@ impl DavFileSystem for InterceptingFs {
             let _ = self
                 .db
                 .rename_file(&from.as_url_string(), &to.as_url_string(), &new_name);
+            if let Ok(shares) = self.db.get_shares_by_storage_path(&from.as_url_string()) {
+                for s in shares {
+                    let _ = self.db.revoke_share(&s.token);
+                    if let Some(fuxico) = &self.fuxico {
+                        let fuxico = fuxico.clone();
+                        tokio::spawn(async move {
+                            let _ = fuxico.revoke_share(&s.fuxico_slug).await;
+                        });
+                    }
+                }
+            }
             Ok(())
         }
         .boxed()

@@ -35,8 +35,14 @@ async fn test_fuxico_share_lifecycle_and_internal_streaming() {
                     async move {
                         state.share_calls.fetch_add(1, Ordering::SeqCst);
                         assert_eq!(body["file_name"], "relatorio.pdf");
-                        assert!(body["mocambo_token"].as_str().unwrap().starts_with("moca_tok_"));
-                        assert!(body["mocambo_stream_url"].as_str().unwrap().contains("/api/internal/stream/"));
+                        assert!(body["mocambo_token"]
+                            .as_str()
+                            .unwrap()
+                            .starts_with("moca_tok_"));
+                        assert!(body["mocambo_stream_url"]
+                            .as_str()
+                            .unwrap()
+                            .contains("/api/internal/stream/"));
 
                         (
                             StatusCode::CREATED,
@@ -74,7 +80,9 @@ async fn test_fuxico_share_lifecycle_and_internal_streaming() {
     let mock_listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
     let mock_addr = mock_listener.local_addr().unwrap();
     tokio::spawn(async move {
-        axum::serve(mock_listener, mock_fuxico_router).await.unwrap();
+        axum::serve(mock_listener, mock_fuxico_router)
+            .await
+            .unwrap();
     });
 
     // 2. Configurar ambiente Mocambo
@@ -177,4 +185,54 @@ async fn test_fuxico_share_lifecycle_and_internal_streaming() {
         stream_after_res.status() == reqwest::StatusCode::NOT_FOUND
             || stream_after_res.status() == reqwest::StatusCode::GONE
     );
+}
+
+#[tokio::test]
+async fn test_share_nonexistent_file_and_invalid_token() {
+    let temp = tempdir().unwrap();
+    let config = Config::new_for_test(temp.path());
+    let db = Database::init(&config.db_path).unwrap();
+
+    let app = create_app(config.clone(), db.clone()).await.unwrap();
+    let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let addr = listener.local_addr().unwrap();
+    tokio::spawn(async move {
+        axum::serve(listener, app).await.unwrap();
+    });
+
+    let client = reqwest::Client::new();
+    let base_url = format!("http://{}", addr);
+
+    // 1. Share de arquivo inexistente retorna 404
+    let res = client
+        .post(format!("{}/api/shares", base_url))
+        .json(&json!({
+            "storage_path": "Drive/arquivo_fantasma.txt"
+        }))
+        .send()
+        .await
+        .unwrap();
+
+    assert_eq!(res.status(), reqwest::StatusCode::NOT_FOUND);
+
+    // 2. Stream de token inexistente retorna 404
+    let stream_res = client
+        .get(format!(
+            "{}/api/internal/stream/moca_tok_inexistente",
+            base_url
+        ))
+        .send()
+        .await
+        .unwrap();
+
+    assert_eq!(stream_res.status(), reqwest::StatusCode::NOT_FOUND);
+
+    // 3. Delete de token inexistente retorna 404
+    let del_res = client
+        .delete(format!("{}/api/shares/moca_tok_inexistente", base_url))
+        .send()
+        .await
+        .unwrap();
+
+    assert_eq!(del_res.status(), reqwest::StatusCode::NOT_FOUND);
 }

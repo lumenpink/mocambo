@@ -13,7 +13,17 @@ pub async fn create_app(
     db: Database,
 ) -> Result<Router, Box<dyn std::error::Error>> {
     let user_id = "default".to_string();
-    let fs = InterceptingFs::new(config.storage_dir.clone(), db.clone(), user_id);
+    let fuxico = Arc::new(crate::fuxico::FuxicoClient::new(
+        config.fuxico_base_url.clone(),
+        config.fuxico_api_token.clone(),
+    ));
+
+    let fs = InterceptingFs::new_with_fuxico(
+        config.storage_dir.clone(),
+        db.clone(),
+        user_id,
+        Some(fuxico.clone()),
+    );
     let dav_handler = Arc::new(
         DavHandler::builder()
             .strip_prefix("/dav")
@@ -21,7 +31,11 @@ pub async fn create_app(
             .build_handler(),
     );
 
-    let state = AppState { db };
+    let state = AppState {
+        db,
+        config: config.clone(),
+        fuxico,
+    };
     let app = api_router(state).fallback(move |req: Request| {
         let handler = dav_handler.clone();
         async move {
