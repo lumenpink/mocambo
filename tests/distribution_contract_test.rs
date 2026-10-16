@@ -1,4 +1,5 @@
 use std::path::Path;
+use std::process::Command;
 
 #[test]
 fn test_banca_catalog_manifest_schema() {
@@ -49,10 +50,17 @@ fn test_fastlane_metadata_structure() {
             "full_description.txt ausente para {}",
             locale
         );
-        assert!(
-            loc_dir.join("icon.png").exists(),
-            "icon.png ausente para {}",
-            locale
+        
+        let icon_path = loc_dir.join("icon.png");
+        assert!(icon_path.exists(), "icon.png ausente para {}", locale);
+        
+        // Mutação: validar magic bytes de PNG (\x89PNG\r\n\x1a\n)
+        let icon_bytes = std::fs::read(&icon_path).expect("Falha ao ler icon.png");
+        assert!(icon_bytes.len() >= 8, "Ícone Fastlane muito pequeno");
+        assert_eq!(
+            &icon_bytes[0..8],
+            &[0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A],
+            "Ícone deve ser um PNG válido com assinatura padrão"
         );
     }
 }
@@ -77,4 +85,12 @@ fn test_packaging_script_and_workflow() {
         workflow_content.contains("package-apk.sh") || workflow_content.contains("pratilera"),
         "Workflow de CI deve orquestrar empacotamento ou sync com a Pratilera"
     );
+
+    // Mutação: script com flag desconhecida deve falhar graciosamente com exit code 1
+    let output = Command::new("bash")
+        .arg("scripts/package-apk.sh")
+        .arg("--opcao-inexistente")
+        .output()
+        .expect("Falha ao executar script com flag inválida");
+    assert!(!output.status.success(), "Script com flag desconhecida deve falhar");
 }
