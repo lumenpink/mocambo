@@ -154,10 +154,12 @@ impl Database {
     }
 
     pub fn remove_file_by_path(&self, storage_path: &str) -> Result<(), rusqlite::Error> {
+        let clean = storage_path.trim_start_matches('/');
+        let with_slash = format!("/{}", clean);
         let conn = self.conn.lock().unwrap();
         conn.execute(
-            "DELETE FROM files WHERE storage_path = ?1",
-            params![storage_path],
+            "DELETE FROM files WHERE storage_path = ?1 OR storage_path = ?2",
+            params![clean, with_slash],
         )?;
         Ok(())
     }
@@ -166,13 +168,15 @@ impl Database {
         &self,
         storage_path: &str,
     ) -> Result<Option<FileRecord>, rusqlite::Error> {
+        let clean = storage_path.trim_start_matches('/');
+        let with_slash = format!("/{}", clean);
         let conn = self.conn.lock().unwrap();
         let mut stmt = conn.prepare(
             "SELECT id, user_id, storage_path, file_name, file_size, sha256, mime_type, created_at, mtime, analysis_status
-             FROM files WHERE storage_path = ?1 LIMIT 1",
+             FROM files WHERE storage_path = ?1 OR storage_path = ?2 LIMIT 1",
         )?;
 
-        let mut rows = stmt.query(params![storage_path])?;
+        let mut rows = stmt.query(params![clean, with_slash])?;
         if let Some(row) = rows.next()? {
             Ok(Some(FileRecord {
                 id: row.get(0)?,
@@ -249,13 +253,15 @@ impl Database {
         &self,
         storage_path: &str,
     ) -> Result<Vec<ShareRecord>, rusqlite::Error> {
+        let clean = storage_path.trim_start_matches('/');
+        let with_slash = format!("/{}", clean);
         let conn = self.conn.lock().unwrap();
         let mut stmt = conn.prepare(
             "SELECT id, token, user_id, storage_path, fuxico_slug, fuxico_url, created_at, expires_at, status
-             FROM shares WHERE storage_path = ?1 AND status = 'active'",
+             FROM shares WHERE (storage_path = ?1 OR storage_path = ?2) AND status = 'active'",
         )?;
 
-        let rows = stmt.query_map(params![storage_path], |row| {
+        let rows = stmt.query_map(params![clean, with_slash], |row| {
             Ok(ShareRecord {
                 id: row.get(0)?,
                 token: row.get(1)?,

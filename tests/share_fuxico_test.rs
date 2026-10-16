@@ -236,3 +236,121 @@ async fn test_share_nonexistent_file_and_invalid_token() {
 
     assert_eq!(del_res.status(), reqwest::StatusCode::NOT_FOUND);
 }
+
+#[tokio::test]
+async fn test_webdav_delete_revokes_active_share() {
+    let mock_state = Arc::new(MockFuxicoState {
+        share_calls: AtomicUsize::new(0),
+        delete_calls: AtomicUsize::new(0),
+    });
+
+    let mock_app_state = mock_state.clone();
+    let mock_fuxico_router = Router::new()
+        .route(
+            "/api/mocambo/share",
+            post({
+                let state = mock_app_state.clone();
+                move |Json(_body): Json<Value>| {
+                    let state = state.clone();
+                    async move {
+                        state.share_calls.fetch_add(1, Ordering::SeqCst);
+                        (
+                            StatusCode::CREATED,
+                            Json(json!({
+                                "slug": "slug-para-deletar",
+                                "url": "https://2lp.in/slug-para-deletar",
+                                "x_token": "fux_delete_token"
+                            })),
+                        )
+                    }
+                }
+            }),
+        )
+        .route(
+            "/api/mocambo/share/{slug}",
+            axum_delete({
+                let state = mock_app_state.clone();
+                move |AxumPath(slug): AxumPath<String>| {
+                    let state = state.clone();
+                    async move {
+                        state.delete_calls.fetch_add(1, Ordering::SeqCst);
+                        (
+                            StatusCode::OK,
+                            Json(json!({
+                                "success": true,
+                                "slug": slug
+                            })),
+                        )
+                    }
+                }
+            }),
+        );
+
+    let mock_listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let mock_addr = mock_listener.local_addr().unwrap();
+    tokio::spawn(async move {
+        axum::serve(mock_listener, mock_fuxico_router)
+            .await
+            .unwrap();
+    });
+
+    let temp = tempdir().unwrap();
+    let mut config = Config::new_for_test(temp.path());
+    config.fuxico_base_url = format!("http://{}", mock_addr);
+    let db = Database::init(&config.db_path).unwrap();
+
+    let file_path = config.storage_dir.join("Drive").join("documento.txt");
+    tokio::fs::write(&file_path, b"conteudo importante")
+        .await
+        .unwrap();
+    db.record_file(
+        "default",
+        "Drive/documento.txt",
+        "documento.txt",
+        19,
+        "dummy_hash",
+        "text/plain",
+    )
+    .unwrap();
+
+    let app = create_app(config.clone(), db.clone()).await.unwrap();
+    let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let addr = listener.local_addr().unwrap();
+    tokio::spawn(async move {
+        axum::serve(listener, app).await.unwrap();
+    });
+
+    let client = reqwest::Client::new();
+    let base_url = format!("http://{}", addr);
+
+    // Cria a share
+    let res = client
+        .post(format!("{}/api/shares", base_url))
+        .json(&json!({
+            "storage_path": "Drive/documento.txt"
+        }))
+        .send()
+        .await
+        .unwrap();
+
+    assert_eq!(res.status(), reqwest::StatusCode::CREATED);
+    let share_data: Value = res.json().await.unwrap();
+    let token = share_data["token"].as_str().unwrap().to_string();
+
+    // Deleta o arquivo via WebDAV DELETE /dav/Drive/documento.txt
+    let dav_del_res = client
+        .delete(format!("{}/dav/Drive/documento.txt", base_url))
+        .send()
+        .await
+        .unwrap();
+
+    assert!(dav_del_res.status().is_success());
+
+    // Aguarda propagação assíncrona da revogação
+    tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+
+    // A share no banco de dados deve estar marcada como revoked
+    let share_record = db.get_share_by_token(&token).unwrap().unwrap();
+    assert_eq!(share_record.status, "revoked");
+    assert_eq!(mock_state.delete_calls.load(Ordering::SeqCst), 1);
+}
