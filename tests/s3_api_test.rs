@@ -60,7 +60,9 @@ async fn test_s3_put_get_and_delete_object() {
         .unwrap();
     assert_eq!(etag, get_etag);
 
-    let body = axum::body::to_bytes(get_res.into_body(), 1024 * 1024).await.unwrap();
+    let body = axum::body::to_bytes(get_res.into_body(), 1024 * 1024)
+        .await
+        .unwrap();
     assert_eq!(body.as_ref(), content);
 
     // 3. ListObjectsV2: GET /s3/vault
@@ -85,7 +87,9 @@ async fn test_s3_put_get_and_delete_object() {
         .unwrap();
     assert!(list_type.contains("xml"));
 
-    let list_xml = axum::body::to_bytes(list_res.into_body(), 1024 * 1024).await.unwrap();
+    let list_xml = axum::body::to_bytes(list_res.into_body(), 1024 * 1024)
+        .await
+        .unwrap();
     let xml_str = String::from_utf8_lossy(&list_xml);
     assert!(xml_str.contains("<ListBucketResult"));
     assert!(xml_str.contains("<Name>vault</Name>"));
@@ -195,7 +199,9 @@ async fn test_s3_prefix_filtering_and_idempotent_delete() {
         .unwrap();
 
     assert_eq!(list_res.status(), StatusCode::OK);
-    let body_bytes = axum::body::to_bytes(list_res.into_body(), 1024 * 1024).await.unwrap();
+    let body_bytes = axum::body::to_bytes(list_res.into_body(), 1024 * 1024)
+        .await
+        .unwrap();
     let xml = String::from_utf8_lossy(&body_bytes);
     assert!(xml.contains("<Key>2026/01.jpg</Key>"));
     assert!(xml.contains("<Key>2026/02.jpg</Key>"));

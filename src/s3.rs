@@ -45,11 +45,7 @@ pub async fn s3_put_object_handler(
     let bytes = match to_bytes(body, 256 * 1024 * 1024).await {
         Ok(b) => b,
         Err(e) => {
-            return (
-                StatusCode::BAD_REQUEST,
-                format!("Falha ao ler corpo: {e}"),
-            )
-                .into_response()
+            return (StatusCode::BAD_REQUEST, format!("Falha ao ler corpo: {e}")).into_response()
         }
     };
 
@@ -108,16 +104,28 @@ pub async fn s3_get_object_handler(
 
     let canon_root = match state.config.storage_dir.canonicalize() {
         Ok(r) => r,
-        Err(_) => return (StatusCode::INTERNAL_SERVER_ERROR, "Configuração inválida").into_response(),
+        Err(_) => {
+            return (StatusCode::INTERNAL_SERVER_ERROR, "Configuração inválida").into_response()
+        }
     };
 
     let canon_file = match target_file.canonicalize() {
         Ok(f) => f,
-        Err(_) => return (StatusCode::NOT_FOUND, s3_error_xml("NoSuchKey", "The specified key does not exist.")).into_response(),
+        Err(_) => {
+            return (
+                StatusCode::NOT_FOUND,
+                s3_error_xml("NoSuchKey", "The specified key does not exist."),
+            )
+                .into_response()
+        }
     };
 
     if !canon_file.starts_with(&canon_root) || !canon_file.is_file() {
-        return (StatusCode::NOT_FOUND, s3_error_xml("NoSuchKey", "The specified key does not exist.")).into_response();
+        return (
+            StatusCode::NOT_FOUND,
+            s3_error_xml("NoSuchKey", "The specified key does not exist."),
+        )
+            .into_response();
     }
 
     let mime = mime_guess::from_path(&canon_file)
@@ -126,7 +134,9 @@ pub async fn s3_get_object_handler(
 
     let file = match tokio::fs::File::open(&canon_file).await {
         Ok(f) => f,
-        Err(_) => return (StatusCode::INTERNAL_SERVER_ERROR, "Erro ao abrir arquivo").into_response(),
+        Err(_) => {
+            return (StatusCode::INTERNAL_SERVER_ERROR, "Erro ao abrir arquivo").into_response()
+        }
     };
 
     let len = match file.metadata().await {
