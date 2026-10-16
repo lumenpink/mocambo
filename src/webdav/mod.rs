@@ -23,11 +23,12 @@ pub struct InterceptingFs {
     root: PathBuf,
     user_id: String,
     fuxico: Option<Arc<crate::fuxico::FuxicoClient>>,
+    indexer: Option<crate::indexer::IndexerHandle>,
 }
 
 impl InterceptingFs {
     pub fn new(root: PathBuf, db: Database, user_id: String) -> Box<Self> {
-        Self::new_with_fuxico(root, db, user_id, None)
+        Self::new_with_fuxico_and_indexer(root, db, user_id, None, None)
     }
 
     pub fn new_with_fuxico(
@@ -35,6 +36,16 @@ impl InterceptingFs {
         db: Database,
         user_id: String,
         fuxico: Option<Arc<crate::fuxico::FuxicoClient>>,
+    ) -> Box<Self> {
+        Self::new_with_fuxico_and_indexer(root, db, user_id, fuxico, None)
+    }
+
+    pub fn new_with_fuxico_and_indexer(
+        root: PathBuf,
+        db: Database,
+        user_id: String,
+        fuxico: Option<Arc<crate::fuxico::FuxicoClient>>,
+        indexer: Option<crate::indexer::IndexerHandle>,
     ) -> Box<Self> {
         let local_box = LocalFs::new(&root, false, false, false);
         let inner = Arc::new(*local_box);
@@ -44,6 +55,7 @@ impl InterceptingFs {
             root,
             user_id,
             fuxico,
+            indexer,
         })
     }
 }
@@ -65,6 +77,7 @@ impl DavFileSystem for InterceptingFs {
                     rel_path: path.as_rel_ospath().to_path_buf(),
                     dav_path_str: path.as_url_string().to_string(),
                     user_id: self.user_id.clone(),
+                    indexer: self.indexer.clone(),
                 }) as Box<dyn DavFile>)
             } else {
                 Ok(file)
@@ -102,6 +115,7 @@ impl DavFileSystem for InterceptingFs {
             self.inner.remove_file(path).await?;
             let path_str = path.as_url_string();
             let _ = self.db.remove_file_by_path(&path_str);
+            let _ = self.db.remove_fts_by_path(&path_str);
             if let Ok(shares) = self.db.get_shares_by_storage_path(&path_str) {
                 for s in shares {
                     let _ = self.db.revoke_share(&s.token);
@@ -129,6 +143,13 @@ impl DavFileSystem for InterceptingFs {
             let _ = self
                 .db
                 .rename_file(&from.as_url_string(), &to.as_url_string(), &new_name);
+            let _ = self.db.remove_fts_by_path(&from.as_url_string());
+            if let Some(indexer) = &self.indexer {
+                indexer.enqueue(crate::indexer::IndexTask {
+                    storage_path: to.as_url_string(),
+                    rel_path: to.as_rel_ospath().to_path_buf(),
+                });
+            }
             if let Ok(shares) = self.db.get_shares_by_storage_path(&from.as_url_string()) {
                 for s in shares {
                     let _ = self.db.revoke_share(&s.token);
@@ -184,6 +205,7 @@ pub struct InterceptingFile {
     rel_path: PathBuf,
     dav_path_str: String,
     user_id: String,
+    indexer: Option<crate::indexer::IndexerHandle>,
 }
 
 impl Debug for InterceptingFile {
@@ -251,6 +273,13 @@ impl DavFile for InterceptingFile {
                         &hash,
                         &mime,
                     );
+
+                    if let Some(indexer) = &self.indexer {
+                        indexer.enqueue(crate::indexer::IndexTask {
+                            storage_path: self.dav_path_str.clone(),
+                            rel_path: self.rel_path.clone(),
+                        });
+                    }
                 }
             }
             Ok(())

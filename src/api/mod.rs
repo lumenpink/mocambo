@@ -2,7 +2,7 @@ use crate::config::Config;
 use crate::db::{Database, ShareRecord};
 use crate::fuxico::{FuxicoClient, FuxicoShareRequest};
 use axum::body::Body;
-use axum::extract::{Path, State};
+use axum::extract::{Path, Query, State};
 use axum::http::header::{CONTENT_DISPOSITION, CONTENT_LENGTH, CONTENT_TYPE};
 use axum::http::{HeaderMap, HeaderValue, StatusCode};
 use axum::response::{IntoResponse, Json, Response};
@@ -28,9 +28,17 @@ pub struct CreateSharePayload {
     pub ttl: Option<String>,
 }
 
+#[derive(Debug, Deserialize)]
+pub struct SearchQuery {
+    pub q: Option<String>,
+    pub limit: Option<usize>,
+    pub offset: Option<usize>,
+}
+
 pub fn router(state: AppState) -> Router {
     Router::new()
         .route("/health", get(healthcheck))
+        .route("/api/search", get(search_handler))
         .route(
             "/api/files/check/{hash}",
             get(check_file_get).head(check_file_head),
@@ -88,6 +96,40 @@ async fn check_file_get(
             })),
         ),
     }
+}
+
+async fn search_handler(
+    State(state): State<AppState>,
+    Query(query): Query<SearchQuery>,
+) -> Result<impl IntoResponse, (StatusCode, Json<serde_json::Value>)> {
+    let q = match query.q {
+        Some(s) if !s.trim().is_empty() => s.trim().to_string(),
+        _ => {
+            return Err((
+                StatusCode::BAD_REQUEST,
+                Json(json!({ "error": "Parâmetro de busca 'q' é obrigatório" })),
+            ));
+        }
+    };
+
+    let limit = query.limit.unwrap_or(20).clamp(1, 100);
+    let offset = query.offset.unwrap_or(0);
+
+    let (total, results) = state.db.search_fts(&q, limit, offset).map_err(|e| {
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(json!({ "error": format!("Erro ao executar busca FTS5: {}", e) })),
+        )
+    })?;
+
+    Ok((
+        StatusCode::OK,
+        Json(json!({
+            "query": q,
+            "total": total,
+            "results": results
+        })),
+    ))
 }
 
 async fn create_share_handler(

@@ -31,6 +31,18 @@ pub struct ShareRecord {
     pub status: String,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SearchResult {
+    pub id: i64,
+    pub storage_path: String,
+    pub file_name: String,
+    pub file_size: i64,
+    pub sha256: String,
+    pub mime_type: String,
+    pub snippet: String,
+    pub score: f64,
+}
+
 #[derive(Clone)]
 pub struct Database {
     conn: Arc<Mutex<Connection>>,
@@ -76,7 +88,15 @@ impl Database {
 
              CREATE INDEX IF NOT EXISTS idx_shares_token ON shares(token);
              CREATE INDEX IF NOT EXISTS idx_shares_storage_path ON shares(storage_path);
-             CREATE INDEX IF NOT EXISTS idx_shares_fuxico_slug ON shares(fuxico_slug);",
+             CREATE INDEX IF NOT EXISTS idx_shares_fuxico_slug ON shares(fuxico_slug);
+
+             CREATE VIRTUAL TABLE IF NOT EXISTS files_fts USING fts5(
+                 file_id UNINDEXED,
+                 storage_path UNINDEXED,
+                 file_name,
+                 body,
+                 tokenize = 'unicode61 remove_diacritics 2'
+             );",
         )?;
 
         Ok(Self {
@@ -280,5 +300,113 @@ impl Database {
             list.push(r?);
         }
         Ok(list)
+    }
+
+    pub fn index_file_content(
+        &self,
+        file_id: i64,
+        storage_path: &str,
+        file_name: &str,
+        body: &str,
+    ) -> Result<(), rusqlite::Error> {
+        let clean = storage_path.trim_start_matches('/');
+        let conn = self.conn.lock().unwrap();
+        conn.execute("DELETE FROM files_fts WHERE file_id = ?1", params![file_id])?;
+        conn.execute(
+            "INSERT INTO files_fts (file_id, storage_path, file_name, body) VALUES (?1, ?2, ?3, ?4)",
+            params![file_id, clean, file_name, body],
+        )?;
+        conn.execute(
+            "UPDATE files SET analysis_status = 'indexed' WHERE id = ?1",
+            params![file_id],
+        )?;
+        Ok(())
+    }
+
+    pub fn remove_fts_by_path(&self, storage_path: &str) -> Result<(), rusqlite::Error> {
+        let clean = storage_path.trim_start_matches('/');
+        let with_slash = format!("/{}", clean);
+        let conn = self.conn.lock().unwrap();
+        conn.execute(
+            "DELETE FROM files_fts WHERE storage_path = ?1 OR storage_path = ?2",
+            params![clean, with_slash],
+        )?;
+        Ok(())
+    }
+
+    pub fn search_fts(
+        &self,
+        query: &str,
+        limit: usize,
+        offset: usize,
+    ) -> Result<(usize, Vec<SearchResult>), rusqlite::Error> {
+        let clean_query = query.trim();
+        if clean_query.is_empty() {
+            return Ok((0, Vec::new()));
+        }
+
+        // Sanitização de consulta FTS5 para evitar erros de sintaxe
+        let fts_query = clean_query
+            .split_whitespace()
+            .map(|w| {
+                let sanitized: String = w
+                    .chars()
+                    .filter(|c| c.is_alphanumeric() || *c == '_')
+                    .collect();
+                if sanitized.is_empty() {
+                    String::new()
+                } else {
+                    format!("\"{}\"", sanitized)
+                }
+            })
+            .filter(|s| !s.is_empty())
+            .collect::<Vec<_>>()
+            .join(" ");
+
+        if fts_query.is_empty() {
+            return Ok((0, Vec::new()));
+        }
+
+        let conn = self.conn.lock().unwrap();
+        let total: usize = conn
+            .query_row(
+                "SELECT COUNT(*) FROM files_fts WHERE files_fts MATCH ?1",
+                params![&fts_query],
+                |row| row.get(0),
+            )
+            .unwrap_or(0);
+
+        let mut stmt = conn.prepare(
+            "SELECT f.id, f.storage_path, f.file_name, f.file_size, f.sha256, f.mime_type,
+                    snippet(files_fts, -1, '<b>', '</b>', '...', 15),
+                    bm25(files_fts)
+             FROM files_fts
+             JOIN files f ON f.id = files_fts.file_id
+             WHERE files_fts MATCH ?1
+             ORDER BY bm25(files_fts)
+             LIMIT ?2 OFFSET ?3",
+        )?;
+
+        let rows = stmt.query_map(params![&fts_query, limit as i64, offset as i64], |row| {
+            let raw_path: String = row.get(1)?;
+            let clean_path = raw_path.trim_start_matches('/').to_string();
+            Ok(SearchResult {
+                id: row.get(0)?,
+                storage_path: clean_path,
+                file_name: row.get(2)?,
+                file_size: row.get(3)?,
+                sha256: row.get(4)?,
+                mime_type: row.get(5)?,
+                snippet: row.get(6)?,
+                score: row.get(7)?,
+            })
+        })?;
+
+        let mut results = Vec::new();
+        for r in rows {
+            results.push(r?);
+        }
+
+        Ok((total, results))
     }
 }

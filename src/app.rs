@@ -18,11 +18,16 @@ pub async fn create_app(
         config.fuxico_api_token.clone(),
     ));
 
-    let fs = InterceptingFs::new_with_fuxico(
+    let (indexer_tx, indexer_rx) = tokio::sync::mpsc::channel(512);
+    let indexer_handle = crate::indexer::IndexerHandle::new(indexer_tx);
+    crate::indexer::start_indexer(indexer_rx, db.clone(), config.storage_dir.clone());
+
+    let fs = InterceptingFs::new_with_fuxico_and_indexer(
         config.storage_dir.clone(),
         db.clone(),
         user_id,
         Some(fuxico.clone()),
+        Some(indexer_handle),
     );
     let dav_handler = Arc::new(
         DavHandler::builder()

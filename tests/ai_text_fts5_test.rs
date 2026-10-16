@@ -35,7 +35,8 @@ async fn test_async_text_extraction_and_fts5_search() {
     assert_eq!(empty_data["total"], 0);
 
     // 2. Upload de arquivo de texto via WebDAV PUT
-    let file_content = "Este documento descreve o algoritmo de consenso bizantino avançado para nós distribuídos.";
+    let file_content =
+        "Este documento descreve o algoritmo de consenso bizantino avançado para nós distribuídos.";
     let put_res = client
         .put(format!("{}/dav/Drive/algoritmo.txt", base_url))
         .body(file_content)
@@ -69,7 +70,10 @@ async fn test_async_text_extraction_and_fts5_search() {
         }
     }
 
-    assert!(indexed, "O arquivo não foi indexado a tempo pelo worker FTS5");
+    assert!(
+        indexed,
+        "O arquivo não foi indexado a tempo pelo worker FTS5"
+    );
 
     // 4. Busca por outro termo presente no texto
     let search_consenso = client
@@ -82,7 +86,10 @@ async fn test_async_text_extraction_and_fts5_search() {
 
     // 5. Busca por termo inexistente retorna 0
     let search_inexistente = client
-        .get(format!("{}/api/search?q=termoinexistentenodocumento", base_url))
+        .get(format!(
+            "{}/api/search?q=termoinexistentenodocumento",
+            base_url
+        ))
         .send()
         .await
         .unwrap();
