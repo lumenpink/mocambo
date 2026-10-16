@@ -35,6 +35,14 @@ async fn test_web_ui_html_endpoint() {
         .unwrap();
     assert!(content_type.contains("text/html"));
 
+    let csp = res
+        .headers()
+        .get("content-security-policy")
+        .expect("CSP header presente")
+        .to_str()
+        .unwrap();
+    assert!(csp.contains("default-src"));
+
     let body = axum::body::to_bytes(res.into_body(), 1024 * 1024).await.unwrap();
     let body_str = String::from_utf8_lossy(&body);
     assert!(body_str.contains("Mocambo"));
@@ -107,6 +115,7 @@ async fn test_api_files_and_raw_streaming() {
 
     // Path traversal block test
     let res_traversal = app
+        .clone()
         .oneshot(
             Request::builder()
                 .uri("/raw/../etc/passwd")
@@ -121,4 +130,17 @@ async fn test_api_files_and_raw_streaming() {
             || res_traversal.status() == StatusCode::FORBIDDEN
             || res_traversal.status() == StatusCode::NOT_FOUND
     );
+
+    // Mutação: Pasta requisitada via raw streaming deve ser rejeitada com 403 Forbidden
+    let res_dir_raw = app
+        .oneshot(
+            Request::builder()
+                .uri("/raw/documentos")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(res_dir_raw.status(), StatusCode::FORBIDDEN);
 }
