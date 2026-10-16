@@ -16,7 +16,7 @@ fn test_banca_catalog_manifest_schema() {
     assert_eq!(json["name"], "mocambo");
     assert_eq!(json["forge"], "codeberg");
     assert_eq!(json["slug"], "lumenpink/mocambo");
-    assert_eq!(json["category"], "storage");
+    assert_eq!(json["category"], "apps");
     assert!(json["topics"].is_array());
     let topics = json["topics"].as_array().unwrap();
     assert!(topics.iter().any(|t| t == "webdav"));
