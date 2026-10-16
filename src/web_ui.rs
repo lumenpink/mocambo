@@ -34,9 +34,7 @@ pub async fn web_ui_handler() -> Response {
     );
     headers.insert(
         "Content-Security-Policy",
-        HeaderValue::from_static(
-            "default-src 'self' 'unsafe-inline' 'unsafe-eval' data: blob:;",
-        ),
+        HeaderValue::from_static("default-src 'self' 'unsafe-inline' 'unsafe-eval' data: blob:;"),
     );
     (StatusCode::OK, headers, html).into_response()
 }
@@ -56,9 +54,10 @@ pub async fn list_files_handler(
     let target_dir = state.config.storage_dir.join(clean_rel);
 
     // Validar se o target_dir está contido em storage_dir
-    if let (Ok(canon_target), Ok(canon_root)) =
-        (target_dir.canonicalize(), state.config.storage_dir.canonicalize())
-    {
+    if let (Ok(canon_target), Ok(canon_root)) = (
+        target_dir.canonicalize(),
+        state.config.storage_dir.canonicalize(),
+    ) {
         if !canon_target.starts_with(&canon_root) {
             return (StatusCode::FORBIDDEN, "Acesso proibido").into_response();
         }
@@ -69,7 +68,9 @@ pub async fn list_files_handler(
     let mut items = Vec::new();
     let entries = match fs::read_dir(&target_dir) {
         Ok(e) => e,
-        Err(_) => return (StatusCode::INTERNAL_SERVER_ERROR, "Erro ao ler diretório").into_response(),
+        Err(_) => {
+            return (StatusCode::INTERNAL_SERVER_ERROR, "Erro ao ler diretório").into_response()
+        }
     };
 
     for entry in entries.flatten() {
@@ -102,7 +103,7 @@ pub async fn list_files_handler(
         let mime_type = if is_dir {
             "inode/directory".to_string()
         } else {
-            mime_guess::from_path(&entry.path())
+            mime_guess::from_path(entry.path())
                 .first_or_octet_stream()
                 .to_string()
         };
@@ -141,7 +142,13 @@ pub async fn raw_file_handler(
     // Validação canônica
     let canon_root = match state.config.storage_dir.canonicalize() {
         Ok(r) => r,
-        Err(_) => return (StatusCode::INTERNAL_SERVER_ERROR, "Configuração de storage inválida").into_response(),
+        Err(_) => {
+            return (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "Configuração de storage inválida",
+            )
+                .into_response()
+        }
     };
 
     let canon_file = match file_path.canonicalize() {
@@ -159,7 +166,9 @@ pub async fn raw_file_handler(
 
     let file = match tokio::fs::File::open(&canon_file).await {
         Ok(f) => f,
-        Err(_) => return (StatusCode::INTERNAL_SERVER_ERROR, "Erro ao abrir arquivo").into_response(),
+        Err(_) => {
+            return (StatusCode::INTERNAL_SERVER_ERROR, "Erro ao abrir arquivo").into_response()
+        }
     };
 
     let len = match file.metadata().await {
