@@ -139,3 +139,79 @@ async fn test_s3_put_get_and_delete_object() {
             || traversal_res.status() == StatusCode::NOT_FOUND
     );
 }
+
+#[tokio::test]
+async fn test_s3_prefix_filtering_and_idempotent_delete() {
+    let temp_dir = TempDir::new().unwrap();
+    let config = Config::new_for_test(temp_dir.path());
+    let db = Database::init(&config.db_path).unwrap();
+    let app = create_app(config, db).await.unwrap();
+
+    // Inserir objetos com diferentes prefixos
+    app.clone()
+        .oneshot(
+            Request::builder()
+                .method("PUT")
+                .uri("/s3/fotos/2026/01.jpg")
+                .body(Body::from("foto1"))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    app.clone()
+        .oneshot(
+            Request::builder()
+                .method("PUT")
+                .uri("/s3/fotos/2026/02.jpg")
+                .body(Body::from("foto2"))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    app.clone()
+        .oneshot(
+            Request::builder()
+                .method("PUT")
+                .uri("/s3/fotos/docs/carta.txt")
+                .body(Body::from("carta"))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    // List com prefix=2026/
+    let list_res = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("GET")
+                .uri("/s3/fotos?prefix=2026/")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(list_res.status(), StatusCode::OK);
+    let body_bytes = axum::body::to_bytes(list_res.into_body(), 1024 * 1024).await.unwrap();
+    let xml = String::from_utf8_lossy(&body_bytes);
+    assert!(xml.contains("<Key>2026/01.jpg</Key>"));
+    assert!(xml.contains("<Key>2026/02.jpg</Key>"));
+    assert!(!xml.contains("docs/carta.txt"));
+
+    // Deleção idempotente de chave que não existe mais
+    let del_res = app
+        .oneshot(
+            Request::builder()
+                .method("DELETE")
+                .uri("/s3/fotos/arquivo_inexistente.txt")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(del_res.status(), StatusCode::NO_CONTENT);
+}
