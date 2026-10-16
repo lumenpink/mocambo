@@ -50,10 +50,10 @@ fn test_fastlane_metadata_structure() {
             "full_description.txt ausente para {}",
             locale
         );
-        
+
         let icon_path = loc_dir.join("icon.png");
         assert!(icon_path.exists(), "icon.png ausente para {}", locale);
-        
+
         // Mutação: validar magic bytes de PNG (\x89PNG\r\n\x1a\n)
         let icon_bytes = std::fs::read(&icon_path).expect("Falha ao ler icon.png");
         assert!(icon_bytes.len() >= 8, "Ícone Fastlane muito pequeno");
@@ -68,10 +68,7 @@ fn test_fastlane_metadata_structure() {
 #[test]
 fn test_packaging_script_and_workflow() {
     let script_path = Path::new("scripts/package-apk.sh");
-    assert!(
-        script_path.exists(),
-        "scripts/package-apk.sh deve existir"
-    );
+    assert!(script_path.exists(), "scripts/package-apk.sh deve existir");
 
     let workflow_path = Path::new(".forgejo/workflows/distribution.yml");
     assert!(
@@ -79,8 +76,7 @@ fn test_packaging_script_and_workflow() {
         ".forgejo/workflows/distribution.yml deve existir para governança CI/CD"
     );
 
-    let workflow_content =
-        std::fs::read_to_string(workflow_path).expect("Falha ao ler workflow");
+    let workflow_content = std::fs::read_to_string(workflow_path).expect("Falha ao ler workflow");
     assert!(
         workflow_content.contains("package-apk.sh") || workflow_content.contains("pratilera"),
         "Workflow de CI deve orquestrar empacotamento ou sync com a Pratilera"
@@ -92,5 +88,8 @@ fn test_packaging_script_and_workflow() {
         .arg("--opcao-inexistente")
         .output()
         .expect("Falha ao executar script com flag inválida");
-    assert!(!output.status.success(), "Script com flag desconhecida deve falhar");
+    assert!(
+        !output.status.success(),
+        "Script com flag desconhecida deve falhar"
+    );
 }
