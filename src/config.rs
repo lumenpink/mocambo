@@ -13,7 +13,8 @@ impl Config {
         let db_path = temp_dir.join("mocambo.db");
         std::fs::create_dir_all(&storage_dir).expect("Failed to create test storage dir");
         std::fs::create_dir_all(storage_dir.join("Drive")).expect("Failed to create Drive dir");
-        std::fs::create_dir_all(storage_dir.join("Timeline")).expect("Failed to create Timeline dir");
+        std::fs::create_dir_all(storage_dir.join("Timeline"))
+            .expect("Failed to create Timeline dir");
 
         Self {
             storage_dir,
@@ -29,8 +30,8 @@ impl Config {
         let db_path = std::env::var("MOCAMBO_DB_PATH")
             .map(PathBuf::from)
             .unwrap_or_else(|_| PathBuf::from("./data/mocambo.db"));
-        let bind_addr = std::env::var("MOCAMBO_BIND_ADDR")
-            .unwrap_or_else(|_| "0.0.0.0:8080".to_string());
+        let bind_addr =
+            std::env::var("MOCAMBO_BIND_ADDR").unwrap_or_else(|_| "0.0.0.0:8080".to_string());
 
         if let Some(parent) = db_path.parent() {
             let _ = std::fs::create_dir_all(parent);

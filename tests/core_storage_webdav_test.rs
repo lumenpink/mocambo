@@ -72,20 +72,29 @@ async fn test_webdav_put_and_check_hash() {
 
     let put_res = app.clone().oneshot(put_req).await.unwrap();
     assert!(
-        put_res.status() == StatusCode::CREATED || put_res.status() == StatusCode::NO_CONTENT || put_res.status() == StatusCode::OK,
+        put_res.status() == StatusCode::CREATED
+            || put_res.status() == StatusCode::NO_CONTENT
+            || put_res.status() == StatusCode::OK,
         "PUT failed with status: {}",
         put_res.status()
     );
 
     // 2. Verify physical POSIX persistence on disk
     let expected_file_path = config.storage_dir.join("Drive").join("hello.txt");
-    assert!(expected_file_path.exists(), "File was not written to POSIX disk at {:?}", expected_file_path);
+    assert!(
+        expected_file_path.exists(),
+        "File was not written to POSIX disk at {:?}",
+        expected_file_path
+    );
     let read_back = std::fs::read(&expected_file_path).unwrap();
     assert_eq!(read_back, file_content);
 
     // 3. Verify SQLite catalog record
     let record = db.get_file_by_hash(&expected_hash).unwrap();
-    assert!(record.is_some(), "File record was not found in database by hash");
+    assert!(
+        record.is_some(),
+        "File record was not found in database by hash"
+    );
     let record = record.unwrap();
     assert_eq!(record.file_name, "hello.txt");
     assert_eq!(record.file_size, file_content.len() as i64);
@@ -146,12 +155,18 @@ async fn test_webdav_overwrite_updates_hash_and_size() {
 
     // Verify V2 is active and V1 is replaced
     let record_v2 = db.get_file_by_hash(&hash_v2).unwrap();
-    assert!(record_v2.is_some(), "New hash must be recorded on overwrite");
+    assert!(
+        record_v2.is_some(),
+        "New hash must be recorded on overwrite"
+    );
     let record_v2 = record_v2.unwrap();
     assert_eq!(record_v2.file_size, content_v2.len() as i64);
 
     let record_v1 = db.get_file_by_hash(&hash_v1).unwrap();
-    assert!(record_v1.is_none(), "Old hash must no longer be present for overwritten file");
+    assert!(
+        record_v1.is_none(),
+        "Old hash must no longer be present for overwritten file"
+    );
 }
 
 #[tokio::test]
@@ -189,7 +204,10 @@ async fn test_webdav_delete_removes_from_database_and_disk() {
     assert!(!file_path.exists(), "Physical file must be deleted");
 
     // Verify DB record is gone
-    assert!(db.get_file_by_hash(&hash).unwrap().is_none(), "Database record must be deleted");
+    assert!(
+        db.get_file_by_hash(&hash).unwrap().is_none(),
+        "Database record must be deleted"
+    );
 
     // Verify HEAD /api/files/check/{hash} returns 404
     let head_req = Request::builder()
@@ -240,7 +258,12 @@ async fn test_nested_timeline_directory_creation_and_upload() {
     assert!(put_res.status().is_success());
 
     // Verify file on disk
-    let photo_path = config.storage_dir.join("Timeline").join("2026").join("10").join("IMG_001.jpg");
+    let photo_path = config
+        .storage_dir
+        .join("Timeline")
+        .join("2026")
+        .join("10")
+        .join("IMG_001.jpg");
     assert!(photo_path.exists());
 
     // Verify hash
@@ -249,4 +272,3 @@ async fn test_nested_timeline_directory_creation_and_upload() {
     let record = record.unwrap();
     assert_eq!(record.file_name, "IMG_001.jpg");
 }
-

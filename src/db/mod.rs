@@ -110,7 +110,12 @@ impl Database {
         }
     }
 
-    pub fn rename_file(&self, from_path: &str, to_path: &str, new_file_name: &str) -> Result<(), rusqlite::Error> {
+    pub fn rename_file(
+        &self,
+        from_path: &str,
+        to_path: &str,
+        new_file_name: &str,
+    ) -> Result<(), rusqlite::Error> {
         let conn = self.conn.lock().unwrap();
         conn.execute(
             "UPDATE files SET storage_path = ?1, file_name = ?2 WHERE storage_path = ?3",

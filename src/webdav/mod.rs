@@ -103,7 +103,9 @@ impl DavFileSystem for InterceptingFs {
                 .file_name()
                 .map(|n| n.to_string_lossy().to_string())
                 .unwrap_or_default();
-            let _ = self.db.rename_file(&from.as_url_string(), &to.as_url_string(), &new_name);
+            let _ = self
+                .db
+                .rename_file(&from.as_url_string(), &to.as_url_string(), &new_name);
             Ok(())
         }
         .boxed()

@@ -8,7 +8,10 @@ use axum::Router;
 use dav_server::DavHandler;
 use std::sync::Arc;
 
-pub async fn create_app(config: Config, db: Database) -> Result<Router, Box<dyn std::error::Error>> {
+pub async fn create_app(
+    config: Config,
+    db: Database,
+) -> Result<Router, Box<dyn std::error::Error>> {
     let user_id = "default".to_string();
     let fs = InterceptingFs::new(config.storage_dir.clone(), db.clone(), user_id);
     let dav_handler = Arc::new(
