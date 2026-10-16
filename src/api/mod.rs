@@ -42,6 +42,13 @@ pub fn router(state: AppState) -> Router {
         .route("/ui", get(crate::web_ui::web_ui_handler))
         .route("/api/files", get(crate::web_ui::list_files_handler))
         .route("/raw/{*path}", get(crate::web_ui::raw_file_handler))
+        .route("/s3/{bucket}", get(crate::s3::s3_list_objects_v2_handler))
+        .route(
+            "/s3/{bucket}/{*key}",
+            get(crate::s3::s3_get_object_handler)
+                .put(crate::s3::s3_put_object_handler)
+                .delete(crate::s3::s3_delete_object_handler),
+        )
         .route("/health", get(healthcheck))
         .route("/api/search", get(search_handler))
         .route(

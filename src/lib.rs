@@ -4,6 +4,7 @@ pub mod config;
 pub mod db;
 pub mod fuxico;
 pub mod indexer;
+pub mod s3;
 pub mod vision;
 pub mod web_ui;
 pub mod webdav;
