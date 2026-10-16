@@ -20,7 +20,13 @@ pub async fn create_app(
 
     let (indexer_tx, indexer_rx) = tokio::sync::mpsc::channel(512);
     let indexer_handle = crate::indexer::IndexerHandle::new(indexer_tx);
-    crate::indexer::start_indexer(indexer_rx, db.clone(), config.storage_dir.clone());
+    let vision = crate::vision::create_default_embedder();
+    crate::indexer::start_indexer(
+        indexer_rx,
+        db.clone(),
+        config.storage_dir.clone(),
+        vision.clone(),
+    );
 
     let fs = InterceptingFs::new_with_fuxico_and_indexer(
         config.storage_dir.clone(),
@@ -40,6 +46,7 @@ pub async fn create_app(
         db,
         config: config.clone(),
         fuxico,
+        vision,
     };
     let app = api_router(state).fallback(move |req: Request| {
         let handler = dav_handler.clone();

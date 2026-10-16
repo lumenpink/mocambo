@@ -30,20 +30,24 @@ pub fn start_indexer(
     mut receiver: mpsc::Receiver<IndexTask>,
     db: Database,
     storage_dir: PathBuf,
+    vision: std::sync::Arc<dyn crate::vision::VisionEmbedder>,
 ) -> tokio::task::JoinHandle<()> {
     tokio::spawn(async move {
-        info!("Worker de indexação FTS5 iniciado com sucesso");
+        info!("Worker de indexação FTS5 e Visão iniciado com sucesso");
         while let Some(task) = receiver.recv().await {
             let db_clone = db.clone();
             let storage_dir_clone = storage_dir.clone();
-            if let Err(e) = process_index_task(&db_clone, &storage_dir_clone, &task).await {
+            let vision_clone = vision.clone();
+            if let Err(e) =
+                process_index_task(&db_clone, &storage_dir_clone, &task, vision_clone).await
+            {
                 warn!(
                     "Falha ao processar indexação de {}: {}",
                     task.storage_path, e
                 );
             }
         }
-        info!("Worker de indexação FTS5 finalizado");
+        info!("Worker de indexação FTS5 e Visão finalizado");
     })
 }
 
@@ -51,6 +55,7 @@ async fn process_index_task(
     db: &Database,
     storage_dir: &Path,
     task: &IndexTask,
+    vision: std::sync::Arc<dyn crate::vision::VisionEmbedder>,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let full_path = storage_dir.join(&task.rel_path);
     if !full_path.exists() || !full_path.is_file() {
@@ -71,6 +76,37 @@ async fn process_index_task(
             return Ok(());
         }
     };
+
+    let is_image = file_rec.mime_type.starts_with("image/")
+        || full_path
+            .extension()
+            .and_then(|e| e.to_str())
+            .is_some_and(|ext| {
+                matches!(
+                    ext.to_lowercase().as_str(),
+                    "jpg" | "jpeg" | "png" | "webp" | "gif" | "bmp"
+                )
+            });
+
+    if is_image {
+        if let Ok(bytes) = tokio::fs::read(&full_path).await {
+            match vision.embed_image(&bytes) {
+                Ok(embedding) => {
+                    db.index_image_vector(file_rec.id, &file_rec.storage_path, &embedding)?;
+                    debug!(
+                        "Imagem {} indexada no files_vec com sucesso",
+                        file_rec.storage_path
+                    );
+                }
+                Err(e) => {
+                    warn!(
+                        "Erro ao gerar embedding de imagem para {}: {}",
+                        file_rec.storage_path, e
+                    );
+                }
+            }
+        }
+    }
 
     let text_content = extract_text_from_file(&full_path, &file_rec.mime_type).await;
     db.index_file_content(

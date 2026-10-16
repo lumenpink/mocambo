@@ -20,6 +20,7 @@ pub struct AppState {
     pub db: Database,
     pub config: Config,
     pub fuxico: Arc<FuxicoClient>,
+    pub vision: Arc<dyn crate::vision::VisionEmbedder>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -115,19 +116,96 @@ async fn search_handler(
     let limit = query.limit.unwrap_or(20).clamp(1, 100);
     let offset = query.offset.unwrap_or(0);
 
-    let (total, results) = state.db.search_fts(&q, limit, offset).map_err(|e| {
+    // 1. Busca FTS5
+    let (_fts_total, fts_results) = state.db.search_fts(&q, 100, 0).map_err(|e| {
         (
             StatusCode::INTERNAL_SERVER_ERROR,
-            Json(json!({ "error": format!("Erro ao executar busca FTS5: {}", e) })),
+            Json(json!({ "error": format!("Erro na busca FTS5: {}", e) })),
         )
     })?;
+
+    // 2. Busca Semântica Vetorial de Visão
+    let vec_matches = match state.vision.embed_text(&q) {
+        Ok(q_vec) => state.db.search_vec(&q_vec, 100).unwrap_or_default(),
+        Err(_) => Vec::new(),
+    };
+
+    // 3. Reciprocal Rank Fusion (RRF)
+    const K: f64 = 60.0;
+    use std::collections::HashMap;
+
+    struct RrfEntry {
+        result: crate::db::SearchResult,
+        rrf_score: f64,
+    }
+
+    let mut map: HashMap<i64, RrfEntry> = HashMap::new();
+
+    for (rank, mut fts_res) in fts_results.into_iter().enumerate() {
+        let score = 1.0 / (K + (rank as f64) + 1.0);
+        let id = fts_res.id;
+        fts_res.match_type = "text".to_string();
+        map.insert(
+            id,
+            RrfEntry {
+                result: fts_res,
+                rrf_score: score,
+            },
+        );
+    }
+
+    for (rank, (file_id, cos_score)) in vec_matches.into_iter().enumerate() {
+        let score = 1.0 / (K + (rank as f64) + 1.0);
+        if let Some(entry) = map.get_mut(&file_id) {
+            entry.rrf_score += score;
+            entry.result.match_type = "hybrid".to_string();
+        } else if let Ok(Some(file_rec)) = state.db.get_file_by_id(file_id) {
+            let clean_path = file_rec.storage_path.trim_start_matches('/').to_string();
+            let res = crate::db::SearchResult {
+                id: file_id,
+                storage_path: clean_path,
+                file_name: file_rec.file_name,
+                file_size: file_rec.file_size,
+                sha256: file_rec.sha256,
+                mime_type: file_rec.mime_type,
+                snippet: format!("[Similaridade visual: {:.2}]", cos_score),
+                score: cos_score,
+                match_type: "semantic_image".to_string(),
+            };
+            map.insert(
+                file_id,
+                RrfEntry {
+                    result: res,
+                    rrf_score: score,
+                },
+            );
+        }
+    }
+
+    let mut combined: Vec<crate::db::SearchResult> = map
+        .into_values()
+        .map(|mut entry| {
+            entry.result.score = entry.rrf_score;
+            entry.result
+        })
+        .collect();
+
+    combined.sort_by(|a, b| {
+        b.score
+            .partial_cmp(&a.score)
+            .unwrap_or(std::cmp::Ordering::Equal)
+    });
+
+    let total = combined.len();
+    let paged: Vec<crate::db::SearchResult> =
+        combined.into_iter().skip(offset).take(limit).collect();
 
     Ok((
         StatusCode::OK,
         Json(json!({
             "query": q,
             "total": total,
-            "results": results
+            "results": paged
         })),
     ))
 }

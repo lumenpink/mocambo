@@ -41,6 +41,7 @@ pub struct SearchResult {
     pub mime_type: String,
     pub snippet: String,
     pub score: f64,
+    pub match_type: String,
 }
 
 #[derive(Clone)]
@@ -96,7 +97,17 @@ impl Database {
                  file_name,
                  body,
                  tokenize = 'unicode61 remove_diacritics 2'
-             );",
+             );
+
+             CREATE TABLE IF NOT EXISTS files_vec (
+                 file_id INTEGER PRIMARY KEY,
+                 storage_path TEXT NOT NULL,
+                 embedding BLOB NOT NULL,
+                 created_at INTEGER NOT NULL,
+                 FOREIGN KEY(file_id) REFERENCES files(id) ON DELETE CASCADE
+             );
+
+             CREATE INDEX IF NOT EXISTS idx_files_vec_path ON files_vec(storage_path);",
         )?;
 
         Ok(Self {
@@ -399,6 +410,7 @@ impl Database {
                 mime_type: row.get(5)?,
                 snippet: row.get(6)?,
                 score: row.get(7)?,
+                match_type: "text".to_string(),
             })
         })?;
 
@@ -408,5 +420,123 @@ impl Database {
         }
 
         Ok((total, results))
+    }
+
+    pub fn get_file_by_id(&self, file_id: i64) -> Result<Option<FileRecord>, rusqlite::Error> {
+        let conn = self.conn.lock().unwrap();
+        let mut stmt = conn.prepare(
+            "SELECT id, user_id, storage_path, file_name, file_size, sha256, mime_type, created_at, mtime, analysis_status
+             FROM files WHERE id = ?1 LIMIT 1",
+        )?;
+
+        let mut rows = stmt.query(params![file_id])?;
+        if let Some(row) = rows.next()? {
+            Ok(Some(FileRecord {
+                id: row.get(0)?,
+                user_id: row.get(1)?,
+                storage_path: row.get(2)?,
+                file_name: row.get(3)?,
+                file_size: row.get(4)?,
+                sha256: row.get(5)?,
+                mime_type: row.get(6)?,
+                created_at: row.get(7)?,
+                mtime: row.get(8)?,
+                analysis_status: row.get(9)?,
+            }))
+        } else {
+            Ok(None)
+        }
+    }
+
+    pub fn index_image_vector(
+        &self,
+        file_id: i64,
+        storage_path: &str,
+        embedding: &[f32],
+    ) -> Result<(), rusqlite::Error> {
+        let clean = storage_path.trim_start_matches('/');
+        let mut blob = Vec::with_capacity(embedding.len() * 4);
+        for val in embedding {
+            blob.extend_from_slice(&val.to_le_bytes());
+        }
+
+        let now = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_millis() as i64;
+
+        let conn = self.conn.lock().unwrap();
+        conn.execute(
+            "INSERT INTO files_vec (file_id, storage_path, embedding, created_at)
+             VALUES (?1, ?2, ?3, ?4)
+             ON CONFLICT(file_id) DO UPDATE SET
+                 storage_path = excluded.storage_path,
+                 embedding = excluded.embedding",
+            params![file_id, clean, blob, now],
+        )?;
+
+        conn.execute(
+            "UPDATE files SET analysis_status = 'indexed' WHERE id = ?1",
+            params![file_id],
+        )?;
+
+        Ok(())
+    }
+
+    pub fn remove_vec_by_path(&self, storage_path: &str) -> Result<(), rusqlite::Error> {
+        let clean = storage_path.trim_start_matches('/');
+        let with_slash = format!("/{}", clean);
+        let conn = self.conn.lock().unwrap();
+        conn.execute(
+            "DELETE FROM files_vec WHERE storage_path = ?1 OR storage_path = ?2",
+            params![clean, with_slash],
+        )?;
+        Ok(())
+    }
+
+    pub fn search_vec(
+        &self,
+        query_vec: &[f32],
+        limit: usize,
+    ) -> Result<Vec<(i64, f64)>, rusqlite::Error> {
+        let conn = self.conn.lock().unwrap();
+        let mut stmt = conn.prepare("SELECT file_id, embedding FROM files_vec")?;
+        let rows = stmt.query_map([], |row| {
+            let file_id: i64 = row.get(0)?;
+            let blob: Vec<u8> = row.get(1)?;
+            Ok((file_id, blob))
+        })?;
+
+        let mut matches = Vec::new();
+        for r in rows {
+            let (file_id, blob) = r?;
+            if blob.len() % 4 != 0 {
+                continue;
+            }
+            let dim = blob.len() / 4;
+            let check_dim = dim.min(query_vec.len());
+            let mut dot_product = 0.0f32;
+            for i in 0..check_dim {
+                let bytes = [
+                    blob[i * 4],
+                    blob[i * 4 + 1],
+                    blob[i * 4 + 2],
+                    blob[i * 4 + 3],
+                ];
+                let val = f32::from_le_bytes(bytes);
+                dot_product += query_vec[i] * val;
+            }
+
+            if dot_product > 0.15 {
+                matches.push((file_id, dot_product as f64));
+            }
+        }
+
+        matches.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
+        if matches.len() > limit {
+            matches.truncate(limit);
+        }
+
+        Ok(matches)
     }
 }

@@ -116,6 +116,7 @@ impl DavFileSystem for InterceptingFs {
             let path_str = path.as_url_string();
             let _ = self.db.remove_file_by_path(&path_str);
             let _ = self.db.remove_fts_by_path(&path_str);
+            let _ = self.db.remove_vec_by_path(&path_str);
             if let Ok(shares) = self.db.get_shares_by_storage_path(&path_str) {
                 for s in shares {
                     let _ = self.db.revoke_share(&s.token);
@@ -144,6 +145,7 @@ impl DavFileSystem for InterceptingFs {
                 .db
                 .rename_file(&from.as_url_string(), &to.as_url_string(), &new_name);
             let _ = self.db.remove_fts_by_path(&from.as_url_string());
+            let _ = self.db.remove_vec_by_path(&from.as_url_string());
             if let Some(indexer) = &self.indexer {
                 indexer.enqueue(crate::indexer::IndexTask {
                     storage_path: to.as_url_string(),
