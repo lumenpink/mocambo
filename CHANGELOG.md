@@ -51,6 +51,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+  - (s3) camada minima de compatibilidade com a api s3 da amazon (closes #9)
   - (ui) interface web estatica minimalista embarcada no binario (closes #8)
   - (dist) esteira ci/cd para banca e publicacao de apk na patilera (closes #7)
   - (mobile) app flutter com galeria e offload inteligente de 15 dias (closes #5)
