@@ -1,0 +1,32 @@
+services:
+  mocambo:
+    image: mocambo:latest
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    container_name: mocambo
+    restart: unless-stopped
+    user: "10001:10001"
+    environment:
+      - PORT=8080
+      - HOST=0.0.0.0
+      - STORAGE_DIR=/data/storage
+      - DB_PATH=/data/mocambo.db
+      - FUXICO_BASE_URL=${FUXICO_BASE_URL:-https://2lp.in}
+      - FUXICO_API_TOKEN=${FUXICO_API_TOKEN:-}
+      - MOCAMBO_INTERNAL_URL=${MOCAMBO_INTERNAL_URL:-http://mocambo:8080}
+      - RUST_LOG=info
+    volumes:
+      - /srv/mocambo/storage:/data/storage
+      - /srv/mocambo/data:/data
+    networks:
+      - infra_net
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider http://127.0.0.1:8080/health || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+networks:
+  infra_net:
+    external: true
