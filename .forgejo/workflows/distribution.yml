@@ -1,0 +1,29 @@
+name: Distribution & Patilera CI
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+
+jobs:
+  audit:
+    name: GOST Compliance
+    runs-on: native
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify Quality Gate
+        run: |
+          if command -v cccp >/dev/null 2>&1; then
+            cccp check --strict
+          fi
+
+  package-and-distribute:
+    name: Package APK & Distribute
+    runs-on: native
+    needs: [audit]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run Distribution Script
+        run: |
+          ./scripts/package-apk.sh --sync-pratilera /home/lumen/src/banca || ./scripts/package-apk.sh

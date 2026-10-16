@@ -1,0 +1,1 @@
+Cliente mobile oficial do Mocambo com sincronização WebDAV contínua, galeria de fotos com miniaturas e busca semântica via inteligência artificial.

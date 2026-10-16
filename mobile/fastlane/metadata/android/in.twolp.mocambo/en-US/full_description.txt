@@ -1,0 +1,1 @@
+Official mobile client for Mocambo with continuous WebDAV sync, photo gallery with thumbnails, and semantic AI search.

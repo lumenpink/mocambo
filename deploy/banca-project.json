@@ -1,0 +1,22 @@
+{
+  "name": "mocambo",
+  "forge": "codeberg",
+  "slug": "lumenpink/mocambo",
+  "description": "Armazenamento soberano de arquivos com WebDAV, ingestão inteligente e busca semântica",
+  "topics": [
+    "storage",
+    "webdav",
+    "posix",
+    "fts5",
+    "ai-search",
+    "clip",
+    "rust",
+    "flutter"
+  ],
+  "license": "CC0-1.0",
+  "website": "https://vault.lohn.in",
+  "is_upstream": false,
+  "group": "",
+  "banner": "assets/banners/mocambo-banner.png",
+  "category": "storage"
+}
