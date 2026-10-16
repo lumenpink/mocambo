@@ -5,6 +5,41 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.0] - 2026-10-16
+
+### Features
+- **s3:** implementar camada de compatibilidade s3 minima (#9)
+- **ui:** implementar web ui estatica e streaming de arquivos (#8)
+- **dist:** esteira cicd para banca e apk na patilera (#7)
+
+### Bug Fixes
+- **dist:** alinhar categoria apps com contrato da banca (#7)
+
+### Documentation
+- **changelog:** registrar compatibilidade s3 (closes #9)
+- **s3:** especificacao da camada de compatibilidade s3 (#9)
+- **changelog:** registrar web ui estatica (closes #8)
+- **ui:** especificacao da web ui estatica embarcada (#8)
+- **changelog:** registrar esteira banca e patilera (closes #7)
+- **dist:** especificacao distribuicao banca e patilera (#7)
+
+### Testing
+- **s3:** testes de mutacao para prefixos s3 e delecao (#9)
+- **s3:** teste red para operacoes s3 put get list delete (#9)
+- **ui:** testes de mutacao para csp e bloqueio de diretorios (#8)
+- **ui:** teste red para web ui e listagem de arquivos (#8)
+- **dist:** testes de mutacao para icones png e flags cli (#7)
+- **dist:** teste red para distribuicao banca e patilera (#7)
+
+### Maintenance
+- **git:** ignorar diretorio de build mobile e apks (#9)
+- **version:** sincronizar VERSION para 0.2.0-dev.22 (#9)
+- **s3:** formatacao de codigo com cargo fmt (#9)
+- **version:** sincronizar VERSION para 0.2.0-dev.15+20261016.e900e5c
+- **ui:** formatacao e clippy na web ui (#8)
+- **version:** sincronizar VERSION para 0.2.0-dev.8+20261016.6f18aa6
+- **dist:** formatacao de testes com cargo fmt (#7)
+
 ## [0.1.0] - 2026-10-16
 
 ### Features
