@@ -10,6 +10,8 @@ mobile/build/
 
 # Caches e arquivos temporários
 .cache/
+.wrangler/
+mobile/.dart_tool/
 *.tmp
 *.log
 .DS_Store

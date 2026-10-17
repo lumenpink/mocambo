@@ -50,11 +50,25 @@ if command -v flutter >/dev/null 2>&1; then
     fi
 elif command -v docker >/dev/null 2>&1 && docker image inspect codeberg.org/lumenpink/gost-ci-flutter:latest >/dev/null 2>&1; then
     echo "-> Compilando APK Flutter (release) hermeticamente via sub-imagem gost-ci-flutter..."
+    GRADLE_CACHE_ARG=""
+    if [ -d "$HOME/.gradle" ]; then
+        GRADLE_CACHE_ARG="-v $HOME/.gradle:/root/.gradle"
+    fi
+    PUB_CACHE_DIR="${PUB_CACHE_DIR:-$HOME/.pub-cache}"
+    mkdir -p "$PUB_CACHE_DIR"
+    NDK_CACHE_DIR="${NDK_CACHE_DIR:-$HOME/.cache/android-sdk-ndk}"
+    mkdir -p "$NDK_CACHE_DIR"
+
     docker run --rm \
+        --network=host \
+        -e GIT_CONFIG_COUNT=1 -e GIT_CONFIG_KEY_0=safe.directory -e GIT_CONFIG_VALUE_0='*' \
+        $GRADLE_CACHE_ARG \
+        -v "$PUB_CACHE_DIR:/root/.pub-cache" \
+        -v "$NDK_CACHE_DIR:/opt/android-sdk/ndk" \
         -v "$REPO_ROOT:/workspace" \
         -w /workspace/mobile \
         codeberg.org/lumenpink/gost-ci-flutter:latest \
-        flutter build apk --release
+        bash -c "flutter pub get && flutter build apk --release"
     if [[ -f "$BUILD_OUTPUT" ]]; then
         cp "$BUILD_OUTPUT" "$FINAL_APK"
     fi
