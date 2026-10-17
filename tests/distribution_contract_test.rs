@@ -110,3 +110,27 @@ fn test_apk_flutter_and_r2_contract() {
     );
 }
 
+#[test]
+fn test_banca_dispatch_contract() {
+    let script_path = Path::new("scripts/package-apk.sh");
+    assert!(script_path.exists());
+    let script_content = std::fs::read_to_string(script_path).expect("Falha ao ler package-apk.sh");
+
+    assert!(
+        script_content.contains("https://codeberg.org/api/v1/repos/lumenpink/banca/actions/workflows/ci.yml/dispatches"),
+        "package-apk.sh deve conter chamada de dispatch para a Banca"
+    );
+    assert!(
+        script_content.contains("CODEBERG_TOKEN"),
+        "package-apk.sh deve consumir CODEBERG_TOKEN para autenticar o dispatch"
+    );
+
+    let workflow_path = Path::new(".forgejo/workflows/distribution.yml");
+    assert!(workflow_path.exists());
+    let workflow_content = std::fs::read_to_string(workflow_path).expect("Falha ao ler distribution.yml");
+    assert!(
+        workflow_content.contains("CODEBERG_TOKEN"),
+        ".forgejo/workflows/distribution.yml deve propagar secrets.CODEBERG_TOKEN"
+    );
+}
+
