@@ -196,6 +196,16 @@ if command -v npx >/dev/null 2>&1 && [ -f "$FINAL_APK" ]; then
     fi
 fi
 
+# 5. Notificação de Dispatch para a Banca (Pratilera)
+if [ -n "${CODEBERG_TOKEN:-}" ]; then
+    echo "-> Notificando a Pratilera (Banca) para atualizar o catálogo..."
+    curl -s -X POST \
+        -H "Authorization: token $CODEBERG_TOKEN" \
+        -H "Content-Type: application/json" \
+        "https://codeberg.org/api/v1/repos/lumenpink/banca/actions/workflows/ci.yml/dispatches" \
+        -d '{"ref": "main"}' || true
+fi
+
 echo "================================================================="
 echo "✓ Empacotamento e assinatura concluídos com sucesso!"
 echo "================================================================="
