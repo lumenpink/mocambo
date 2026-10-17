@@ -41,15 +41,25 @@ if [[ -f "$REPO_ROOT/VERSION" ]]; then
 fi
 echo "-> Versão canônica CCCP: $APP_VERSION"
 
-# 1. Compilação Flutter APK ou Geração Binária com aapt
+# 1. Compilação Flutter APK (Local ou via container atômico gost-ci-flutter)
 if command -v flutter >/dev/null 2>&1; then
-    echo "-> Compilando APK Flutter (release)..."
+    echo "-> Compilando APK Flutter (release) via toolchain local..."
     (cd "$MOBILE_DIR" && flutter build apk --release)
     if [[ -f "$BUILD_OUTPUT" ]]; then
         cp "$BUILD_OUTPUT" "$FINAL_APK"
     fi
+elif command -v docker >/dev/null 2>&1 && docker image inspect codeberg.org/lumenpink/gost-ci-flutter:latest >/dev/null 2>&1; then
+    echo "-> Compilando APK Flutter (release) hermeticamente via sub-imagem gost-ci-flutter..."
+    docker run --rm \
+        -v "$REPO_ROOT:/workspace" \
+        -w /workspace/mobile \
+        codeberg.org/lumenpink/gost-ci-flutter:latest \
+        flutter build apk --release
+    if [[ -f "$BUILD_OUTPUT" ]]; then
+        cp "$BUILD_OUTPUT" "$FINAL_APK"
+    fi
 else
-    echo "-> Flutter CLI não encontrado; gerando pacote binário nativo com aapt..."
+    echo "-> Toolchain Flutter não encontrada localmente; gerando pacote binário nativo de contingência..."
     TMP_BUILD="$(mktemp -d)"
     trap 'rm -rf "$TMP_BUILD"' EXIT
 
@@ -161,6 +171,18 @@ if [[ "$DO_SYNC_PRATILERA" == "true" ]]; then
     fi
 fi
 
+# 4. Upload para Cloudflare R2 (twolp-bucket / bucket.2lp.in)
+if command -v npx >/dev/null 2>&1 && [ -f "$FINAL_APK" ]; then
+    if [ -n "${CLOUDFLARE_API_TOKEN:-}" ] || npx wrangler whoami >/dev/null 2>&1; then
+        echo "-> Enviando $FINAL_APK para o bucket twolp-bucket (bucket.2lp.in)..."
+        npx wrangler r2 object put "twolp-bucket/mocambo.apk" \
+            --file="$FINAL_APK" \
+            --content-type="application/vnd.android.package-archive" \
+            --remote || echo "Aviso: Upload de mocambo.apk para twolp-bucket falhou ou foi abortado."
+    fi
+fi
+
 echo "================================================================="
 echo "✓ Empacotamento e assinatura concluídos com sucesso!"
 echo "================================================================="
+

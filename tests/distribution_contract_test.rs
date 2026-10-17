@@ -93,3 +93,20 @@ fn test_packaging_script_and_workflow() {
         "Script com flag desconhecida deve falhar"
     );
 }
+
+#[test]
+fn test_apk_flutter_and_r2_contract() {
+    let script_path = Path::new("scripts/package-apk.sh");
+    assert!(script_path.exists());
+    let script_content = std::fs::read_to_string(script_path).expect("Falha ao ler package-apk.sh");
+
+    assert!(
+        script_content.contains("gost-ci-flutter"),
+        "package-apk.sh deve utilizar sub-imagem gost-ci-flutter para build hermético"
+    );
+    assert!(
+        script_content.contains("twolp-bucket"),
+        "package-apk.sh deve suportar upload para twolp-bucket (bucket.2lp.in)"
+    );
+}
+

@@ -25,5 +25,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Run Distribution Script
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: |
           ./scripts/package-apk.sh --sync-pratilera /home/lumen/src/banca || ./scripts/package-apk.sh
+
