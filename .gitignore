@@ -6,6 +6,7 @@
 /build/
 mobile/build/
 *.apk
+*.idsig
 
 # Caches e arquivos temporários
 .cache/
