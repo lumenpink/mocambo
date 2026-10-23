@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- **build:** otimizar tamanho de binario com profile.release e habilitar linking estatico musl crt-static (closes #13)
+
 ### Bug Fixes
 - **dist:** assinar apk soberanamente com in.twolp e injetar versao canonica (closes #10)
 
