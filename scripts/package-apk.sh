@@ -197,12 +197,12 @@ if command -v npx >/dev/null 2>&1 && [ -f "$FINAL_APK" ]; then
 fi
 
 # 5. Notificação de Dispatch para a Banca (Pratilera)
-if [ -n "${CODEBERG_TOKEN:-}" ]; then
+if [ -n "${GIT_2LP_TOKEN:-}" ]; then
     echo "-> Notificando a Pratilera (Banca) para atualizar o catálogo..."
     curl -s -X POST \
-        -H "Authorization: token $CODEBERG_TOKEN" \
+        -H "Authorization: token $GIT_2LP_TOKEN" \
         -H "Content-Type: application/json" \
-        "https://codeberg.org/api/v1/repos/lumenpink/banca/actions/workflows/ci.yml/dispatches" \
+        "https://git.2lp.in/api/v1/repos/lumen/banca/actions/workflows/ci.yml/dispatches" \
         -d '{"ref": "main"}' || true
 fi
 

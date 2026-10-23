@@ -5,7 +5,7 @@ edition = "2021"
 authors = ["Lumen Pink <hi@lumen.pink>"]
 description = "Sovereign personal cloud storage, WebDAV engine, and smart offload"
 license = "GPL-3.0-or-later"
-repository = "https://codeberg.org/lumenpink/mocambo"
+repository = "https://git.2lp.in/lumen/mocambo"
 
 [dependencies]
 tokio = { version = "1", features = ["full"] }

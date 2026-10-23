@@ -14,8 +14,8 @@ fn test_banca_catalog_manifest_schema() {
         serde_json::from_str(&content).expect("JSON inválido em banca-project.json");
 
     assert_eq!(json["name"], "mocambo");
-    assert_eq!(json["forge"], "codeberg");
-    assert_eq!(json["slug"], "lumenpink/mocambo");
+    assert_eq!(json["forge"], "git.2lp.in");
+    assert_eq!(json["slug"], "lumen/mocambo");
     assert_eq!(json["category"], "apps");
     assert!(json["topics"].is_array());
     let topics = json["topics"].as_array().unwrap();
@@ -70,10 +70,10 @@ fn test_packaging_script_and_workflow() {
     let script_path = Path::new("scripts/package-apk.sh");
     assert!(script_path.exists(), "scripts/package-apk.sh deve existir");
 
-    let workflow_path = Path::new(".forgejo/workflows/distribution.yml");
+    let workflow_path = Path::new(".forgejo/workflows/ci.yml");
     assert!(
         workflow_path.exists(),
-        ".forgejo/workflows/distribution.yml deve existir para governança CI/CD"
+        ".forgejo/workflows/ci.yml deve existir para governança CI/CD"
     );
 
     let workflow_content = std::fs::read_to_string(workflow_path).expect("Falha ao ler workflow");
@@ -118,21 +118,20 @@ fn test_banca_dispatch_contract() {
 
     assert!(
         script_content.contains(
-            "https://codeberg.org/api/v1/repos/lumenpink/banca/actions/workflows/ci.yml/dispatches"
+            "https://git.2lp.in/api/v1/repos/lumen/banca/actions/workflows/ci.yml/dispatches"
         ),
         "package-apk.sh deve conter chamada de dispatch para a Banca"
     );
     assert!(
-        script_content.contains("CODEBERG_TOKEN"),
-        "package-apk.sh deve consumir CODEBERG_TOKEN para autenticar o dispatch"
+        script_content.contains("GIT_2LP_TOKEN"),
+        "package-apk.sh deve consumir GIT_2LP_TOKEN para autenticar o dispatch"
     );
 
-    let workflow_path = Path::new(".forgejo/workflows/distribution.yml");
+    let workflow_path = Path::new(".forgejo/workflows/ci.yml");
     assert!(workflow_path.exists());
-    let workflow_content =
-        std::fs::read_to_string(workflow_path).expect("Falha ao ler distribution.yml");
+    let workflow_content = std::fs::read_to_string(workflow_path).expect("Falha ao ler ci.yml");
     assert!(
-        workflow_content.contains("CODEBERG_TOKEN"),
-        ".forgejo/workflows/distribution.yml deve propagar secrets.CODEBERG_TOKEN"
+        workflow_content.contains("GIT_2LP_TOKEN"),
+        ".forgejo/workflows/ci.yml deve propagar secrets.GIT_2LP_TOKEN"
     );
 }

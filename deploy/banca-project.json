@@ -1,7 +1,7 @@
 {
   "name": "mocambo",
-  "forge": "codeberg",
-  "slug": "lumenpink/mocambo",
+  "forge": "git.2lp.in",
+  "slug": "lumen/mocambo",
   "description": "Armazenamento soberano de arquivos com WebDAV, ingestão inteligente e busca semântica",
   "topics": [
     "storage",
