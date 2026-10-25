@@ -20,19 +20,19 @@ jobs:
     name: "Checks, Tests & Quality Gates"
     runs-on: ubuntu-latest
     container:
-      image: docker.io/lumenpink/gost-ci-cross:latest
+      image: gambi.2lp.in/lumen/gost-ci-cross:latest
     steps:
       - name: "Checkout repository"
         uses: https://github.com/actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - name: "Configure Sovereign Lumen Cargo Registry"
+      - name: "Configure Sovereign Gambi Cargo Registry"
         run: |
           mkdir -p "$HOME/.cargo"
-          printf '[registries.lumen]\nindex = "sparse+https://gambi.2lp.in/api/packages/lumen/cargo/"\n' > "$HOME/.cargo/config.toml"
+          printf '[registries.gambi]\nindex = "sparse+https://gambi.2lp.in/api/packages/lumen/cargo/"\n' > "$HOME/.cargo/config.toml"
           if [ -n "${{ secrets.LUMEN_REGISTRY_TOKEN }}" ]; then
-            printf '[registries.lumen]\ntoken = "${{ secrets.LUMEN_REGISTRY_TOKEN }}"\n' > "$HOME/.cargo/credentials.toml"
+            printf '[registries.gambi]\ntoken = "${{ secrets.LUMEN_REGISTRY_TOKEN }}"\n' > "$HOME/.cargo/credentials.toml"
           fi
 
       - name: "Format Check"
@@ -56,7 +56,7 @@ jobs:
     needs: [test]
     if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v')
     container:
-      image: docker.io/lumenpink/gost-ci-cross:latest
+      image: gambi.2lp.in/lumen/gost-ci-cross:latest
     env:
       CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
       CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
@@ -67,12 +67,12 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: "Configure Sovereign Lumen Cargo Registry"
+      - name: "Configure Sovereign Gambi Cargo Registry"
         run: |
           mkdir -p "$HOME/.cargo"
-          printf '[registries.lumen]\nindex = "sparse+https://gambi.2lp.in/api/packages/lumen/cargo/"\n' > "$HOME/.cargo/config.toml"
+          printf '[registries.gambi]\nindex = "sparse+https://gambi.2lp.in/api/packages/lumen/cargo/"\n' > "$HOME/.cargo/config.toml"
           if [ -n "${{ secrets.LUMEN_REGISTRY_TOKEN }}" ]; then
-            printf '[registries.lumen]\ntoken = "${{ secrets.LUMEN_REGISTRY_TOKEN }}"\n' > "$HOME/.cargo/credentials.toml"
+            printf '[registries.gambi]\ntoken = "${{ secrets.LUMEN_REGISTRY_TOKEN }}"\n' > "$HOME/.cargo/credentials.toml"
           fi
 
       - name: "Determine Version & Release Metadata"
