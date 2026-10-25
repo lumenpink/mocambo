@@ -15,9 +15,6 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: false
 
-permissions:
-  contents: write
-
 jobs:
   test:
     name: "Checks, Tests & Quality Gates"
@@ -33,7 +30,7 @@ jobs:
       - name: "Configure Sovereign Lumen Cargo Registry"
         run: |
           mkdir -p "$HOME/.cargo"
-          printf '[registries.lumen]\nindex = "sparse+https://git.2lp.in/api/packages/lumen/cargo/"\n' > "$HOME/.cargo/config.toml"
+          printf '[registries.lumen]\nindex = "sparse+https://gambi.2lp.in/api/packages/lumen/cargo/"\n' > "$HOME/.cargo/config.toml"
           if [ -n "${{ secrets.LUMEN_REGISTRY_TOKEN }}" ]; then
             printf '[registries.lumen]\ntoken = "${{ secrets.LUMEN_REGISTRY_TOKEN }}"\n' > "$HOME/.cargo/credentials.toml"
           fi
@@ -73,7 +70,7 @@ jobs:
       - name: "Configure Sovereign Lumen Cargo Registry"
         run: |
           mkdir -p "$HOME/.cargo"
-          printf '[registries.lumen]\nindex = "sparse+https://git.2lp.in/api/packages/lumen/cargo/"\n' > "$HOME/.cargo/config.toml"
+          printf '[registries.lumen]\nindex = "sparse+https://gambi.2lp.in/api/packages/lumen/cargo/"\n' > "$HOME/.cargo/config.toml"
           if [ -n "${{ secrets.LUMEN_REGISTRY_TOKEN }}" ]; then
             printf '[registries.lumen]\ntoken = "${{ secrets.LUMEN_REGISTRY_TOKEN }}"\n' > "$HOME/.cargo/credentials.toml"
           fi
@@ -184,7 +181,7 @@ jobs:
             exit 0
           fi
 
-          git clone --depth 1 "https://lumen:${GIT_2LP_TOKEN}@git.2lp.in/lumen/banca.git" /tmp/banca
+          git clone --depth 1 "https://lumen:${GIT_2LP_TOKEN}@gambi.2lp.in/lumen/banca.git" /tmp/banca
 
           if [ -d "/tmp/banca/site/downloads/mocambo" ] && [ -f "/tmp/banca/scripts/rotate-downloads.py" ]; then
             cd /tmp/banca
@@ -230,6 +227,6 @@ jobs:
             curl -s -X POST \
               -H "Authorization: token $GIT_2LP_TOKEN" \
               -H "Content-Type: application/json" \
-              "https://git.2lp.in/api/v1/repos/lumen/banca/actions/workflows/ci.yml/dispatches" \
+              "https://gambi.2lp.in/api/v1/repos/lumen/banca/actions/workflows/ci.yml/dispatches" \
               -d '{"ref": "main"}' || true
           fi
