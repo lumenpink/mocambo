@@ -33,8 +33,17 @@ pub struct FuxicoClient {
 
 impl FuxicoClient {
     pub fn new(base_url: String, token: String) -> Self {
+        let is_loopback = base_url.contains("127.0.0.1") || base_url.contains("localhost");
+        let client = if is_loopback {
+            Client::builder()
+                .no_proxy()
+                .build()
+                .unwrap_or_else(|_| Client::new())
+        } else {
+            Client::new()
+        };
         Self {
-            client: Client::new(),
+            client,
             base_url: base_url.trim_end_matches('/').to_string(),
             token,
         }
