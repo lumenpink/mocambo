@@ -119,7 +119,7 @@ async fn test_fuxico_share_lifecycle_and_internal_streaming() {
         axum::serve(moca_listener, app).await.unwrap();
     });
 
-    let client = reqwest::Client::new();
+    let client = reqwest::Client::builder().no_proxy().build().unwrap();
     let base_url = format!("http://{}", moca_addr);
 
     // 4. Teste: Criar Share via POST /api/shares
@@ -200,7 +200,7 @@ async fn test_share_nonexistent_file_and_invalid_token() {
         axum::serve(listener, app).await.unwrap();
     });
 
-    let client = reqwest::Client::new();
+    let client = reqwest::Client::builder().no_proxy().build().unwrap();
     let base_url = format!("http://{}", addr);
 
     // 1. Share de arquivo inexistente retorna 404
@@ -320,7 +320,7 @@ async fn test_webdav_delete_revokes_active_share() {
         axum::serve(listener, app).await.unwrap();
     });
 
-    let client = reqwest::Client::new();
+    let client = reqwest::Client::builder().no_proxy().build().unwrap();
     let base_url = format!("http://{}", addr);
 
     // Cria a share

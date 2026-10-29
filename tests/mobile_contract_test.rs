@@ -61,7 +61,7 @@ async fn test_mobile_contract_api_endpoints() {
         axum::serve(listener, app).await.unwrap();
     });
 
-    let client = reqwest::Client::new();
+    let client = reqwest::Client::builder().no_proxy().build().unwrap();
     let base_url = format!("http://{}", addr);
 
     let photo_bytes = b"Foto simulada tirada pela camera do smartphone";

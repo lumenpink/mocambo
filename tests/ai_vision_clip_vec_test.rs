@@ -20,7 +20,7 @@ async fn test_async_vision_embedding_and_semantic_image_search() {
         axum::serve(listener, app).await.unwrap();
     });
 
-    let client = reqwest::Client::new();
+    let client = reqwest::Client::builder().no_proxy().build().unwrap();
     let base_url = format!("http://{}", addr);
 
     // 1. Busca inicial com repositório vazio retorna 0 resultados
