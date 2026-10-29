@@ -42,11 +42,13 @@ fi
 echo "-> Versão canônica CCCP: $APP_VERSION"
 
 # 1. Compilação Flutter APK (Local ou via container atômico gost-ci-flutter)
+IS_REAL_BUILD=false
 if command -v flutter >/dev/null 2>&1; then
     echo "-> Compilando APK Flutter (release) via toolchain local..."
     (cd "$MOBILE_DIR" && flutter build apk --release)
     if [[ -f "$BUILD_OUTPUT" ]]; then
         cp "$BUILD_OUTPUT" "$FINAL_APK"
+        IS_REAL_BUILD=true
     fi
 elif command -v docker >/dev/null 2>&1 && docker image inspect codeberg.org/lumenpink/gost-ci-flutter:latest >/dev/null 2>&1; then
     echo "-> Compilando APK Flutter (release) hermeticamente via sub-imagem gost-ci-flutter..."
@@ -71,7 +73,11 @@ elif command -v docker >/dev/null 2>&1 && docker image inspect codeberg.org/lume
         bash -c "flutter pub get && flutter build apk --release"
     if [[ -f "$BUILD_OUTPUT" ]]; then
         cp "$BUILD_OUTPUT" "$FINAL_APK"
+        IS_REAL_BUILD=true
     fi
+elif [[ -f "$FINAL_APK" ]] && [[ $(stat -c%s "$FINAL_APK" 2>/dev/null || stat -f%z "$FINAL_APK" 2>/dev/null || echo 0) -gt 10485760 ]]; then
+    echo "-> APK de release pré-existente válido encontrado em $FINAL_APK (>10MB); preservando binário real..."
+    IS_REAL_BUILD=true
 else
     echo "-> Toolchain Flutter não encontrada localmente; gerando pacote binário nativo de contingência..."
     TMP_BUILD="$(mktemp -d)"
@@ -139,7 +145,7 @@ EOF
 import zipfile, os
 with zipfile.ZipFile('$FINAL_APK', 'w', compression=zipfile.ZIP_DEFLATED) as z:
     z.write('$TMP_BUILD/AndroidManifest.xml', 'AndroidManifest.xml')
-    z.writestr('META-INF/MANIFEST.MF', b'Manifest-Version: 1.0\nCreated-By: Mocambo Soberano CI\n')
+    z.writestr('META-INF/MANIFEST.MF', b'Manifest-Version: 1.0\nCreated-By: Mocambo CI\n')
     if os.path.exists('$TMP_BUILD/res/drawable/icon.png'):
         z.write('$TMP_BUILD/res/drawable/icon.png', 'res/drawable/icon.png')
 "
@@ -148,45 +154,51 @@ with zipfile.ZipFile('$FINAL_APK', 'w', compression=zipfile.ZIP_DEFLATED) as z:
     cp "$FINAL_APK" "$BUILD_OUTPUT"
 fi
 
-# 2. Assinatura Soberana do APK com chave oficial in.twolp
+# 2. Assinatura do APK com chave oficial in.twolp
 KEYSTORE_PATH="${MOCAMBO_KEYSTORE_PATH:-$HOME/.android/in_twolp_release.keystore}"
 if [[ -f "$KEYSTORE_PATH" && -f "$SCRIPT_DIR/sign-release.sh" && $(command -v apksigner) ]]; then
-    echo "-> Assinando APK soberanamente com in_twolp_release.keystore..."
+    echo "-> Assinando APK com in_twolp_release.keystore..."
     "$SCRIPT_DIR/sign-release.sh" "$FINAL_APK"
 else
-    echo "Aviso: Keystore soberana ou apksigner indisponíveis; mantendo assinatura existente."
+    echo "Aviso: Keystore ou apksigner indisponíveis; mantendo assinatura existente."
 fi
 
 # 3. Sincronização com a Pratilera (se solicitado)
 if [[ "$DO_SYNC_PRATILERA" == "true" ]]; then
-    BANCA_DIR="$PRATILERA_TARGET"
-    PRATILERA_SITE="$BANCA_DIR/site/pratilera"
-    if [[ -d "$PRATILERA_SITE" && -f "$FINAL_APK" ]]; then
-        echo "-> Sincronizando APK com a Pratilera ($PRATILERA_SITE)..."
-        cp "$FINAL_APK" "$PRATILERA_SITE/mocambo.apk"
-        
-        # Copiar ícone e metadados Fastlane
-        mkdir -p "$PRATILERA_SITE/icons" "$PRATILERA_SITE/in.twolp.mocambo/pt-BR" "$PRATILERA_SITE/in.twolp.mocambo/en-US"
-        FASTLANE_SRC="$MOBILE_DIR/fastlane/metadata/android/in.twolp.mocambo"
-        if [[ -d "$FASTLANE_SRC" ]]; then
-            cp "$FASTLANE_SRC/pt-BR/icon.png" "$PRATILERA_SITE/icons/in.twolp.mocambo.png"
-            cp "$FASTLANE_SRC/pt-BR/"*.txt "$PRATILERA_SITE/in.twolp.mocambo/pt-BR/" 2>/dev/null || true
-            cp "$FASTLANE_SRC/pt-BR/icon.png" "$PRATILERA_SITE/in.twolp.mocambo/pt-BR/icon.png"
-            cp "$FASTLANE_SRC/en-US/"*.txt "$PRATILERA_SITE/in.twolp.mocambo/en-US/" 2>/dev/null || true
-            cp "$FASTLANE_SRC/en-US/icon.png" "$PRATILERA_SITE/in.twolp.mocambo/en-US/icon.png"
-        fi
+    if [[ "$IS_REAL_BUILD" != "true" ]]; then
+        echo "Aviso: Pulando sincronização com a Pratilera pois o APK é apenas um stub de contingência."
+    else
+        BANCA_DIR="$PRATILERA_TARGET"
+        PRATILERA_SITE="$BANCA_DIR/site/pratilera"
+        if [[ -d "$PRATILERA_SITE" && -f "$FINAL_APK" ]]; then
+            echo "-> Sincronizando APK com a Pratilera ($PRATILERA_SITE)..."
+            cp "$FINAL_APK" "$PRATILERA_SITE/mocambo.apk"
+            
+            # Copiar ícone e metadados Fastlane
+            mkdir -p "$PRATILERA_SITE/icons" "$PRATILERA_SITE/in.twolp.mocambo/pt-BR" "$PRATILERA_SITE/in.twolp.mocambo/en-US"
+            FASTLANE_SRC="$MOBILE_DIR/fastlane/metadata/android/in.twolp.mocambo"
+            if [[ -d "$FASTLANE_SRC" ]]; then
+                cp "$FASTLANE_SRC/pt-BR/icon.png" "$PRATILERA_SITE/icons/in.twolp.mocambo.png"
+                cp "$FASTLANE_SRC/pt-BR/"*.txt "$PRATILERA_SITE/in.twolp.mocambo/pt-BR/" 2>/dev/null || true
+                cp "$FASTLANE_SRC/pt-BR/icon.png" "$PRATILERA_SITE/in.twolp.mocambo/pt-BR/icon.png"
+                cp "$FASTLANE_SRC/en-US/"*.txt "$PRATILERA_SITE/in.twolp.mocambo/en-US/" 2>/dev/null || true
+                cp "$FASTLANE_SRC/en-US/icon.png" "$PRATILERA_SITE/in.twolp.mocambo/en-US/icon.png"
+            fi
 
-        GERADOR="$BANCA_DIR/scripts/gerar-pratilera.py"
-        if [[ -f "$GERADOR" ]]; then
-            echo "-> Executando regeneração do catálogo F-Droid da Pratilera..."
-            python3 "$GERADOR" || echo "Aviso: gerar-pratilera executado com avisos."
+            GERADOR="$BANCA_DIR/scripts/gerar-pratilera.py"
+            if [[ -f "$GERADOR" ]]; then
+                echo "-> Executando regeneração do catálogo F-Droid da Pratilera..."
+                python3 "$GERADOR" || echo "Aviso: gerar-pratilera executado com avisos."
+            fi
+            echo "✓ Patilera sincronizada com sucesso para o Mocambo."
         fi
-        echo "✓ Patilera sincronizada com sucesso para o Mocambo."
     fi
 fi
 
 # 4. Upload para Cloudflare R2 (twolp-bucket / bucket.2lp.in)
-if command -v npx >/dev/null 2>&1 && [ -f "$FINAL_APK" ]; then
+if [[ "$IS_REAL_BUILD" != "true" ]]; then
+    echo "Aviso: APK gerado é um pacote stub de contingência local. Pulando upload para o bucket R2."
+elif command -v npx >/dev/null 2>&1 && [ -f "$FINAL_APK" ]; then
     if [ -n "${CLOUDFLARE_API_TOKEN:-}" ] || npx wrangler whoami >/dev/null 2>&1; then
         echo "-> Enviando $FINAL_APK para o bucket twolp-bucket (bucket.2lp.in)..."
         npx wrangler r2 object put "twolp-bucket/mocambo.apk" \
@@ -197,7 +209,9 @@ if command -v npx >/dev/null 2>&1 && [ -f "$FINAL_APK" ]; then
 fi
 
 # 5. Notificação de Dispatch para a Banca (Pratilera)
-if [ -n "${GIT_2LP_TOKEN:-}" ]; then
+if [[ "$IS_REAL_BUILD" != "true" ]]; then
+    echo "Aviso: Pulando notificação da Pratilera pois o APK real não foi gerado neste ambiente."
+elif [ -n "${GIT_2LP_TOKEN:-}" ]; then
     echo "-> Notificando a Pratilera (Banca) para atualizar o catálogo..."
     curl -s -X POST \
         -H "Authorization: token $GIT_2LP_TOKEN" \

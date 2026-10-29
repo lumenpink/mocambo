@@ -108,6 +108,14 @@ fn test_apk_flutter_and_r2_contract() {
         script_content.contains("twolp-bucket"),
         "package-apk.sh deve suportar upload para twolp-bucket (bucket.2lp.in)"
     );
+    assert!(
+        script_content.contains("IS_REAL_BUILD"),
+        "package-apk.sh deve controlar o status do build real via IS_REAL_BUILD"
+    );
+    assert!(
+        script_content.contains("Pulando upload para o bucket R2"),
+        "package-apk.sh deve blindar upload para R2 contra stubs de contingencia"
+    );
 }
 
 #[test]
