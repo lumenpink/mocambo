@@ -153,3 +153,34 @@ fn test_mobile_visual_identity_canonical_mocambo() {
     let web_manifest = fs::read_to_string("mobile/web/manifest.json").unwrap();
     assert!(web_manifest.contains("\"name\": \"Mocambo\""));
 }
+
+#[test]
+fn test_settings_page_editable_form_and_no_defaults() {
+    let app_config_content = fs::read_to_string("mobile/lib/config/app_config.dart").unwrap();
+    assert!(
+        !app_config_content.contains("'http://127.0.0.1:8080'"),
+        "AppConfig não deve conter URL de servidor default pré-configurada"
+    );
+    assert!(
+        !app_config_content.contains("'default'"),
+        "AppConfig não deve conter usuário default pré-configurado"
+    );
+    assert!(
+        app_config_content.contains("isConfigured"),
+        "AppConfig deve expor getter isConfigured"
+    );
+
+    let settings_content = fs::read_to_string("mobile/lib/views/settings_page.dart").unwrap();
+    assert!(
+        settings_content.contains("TextFormField") || settings_content.contains("TextField"),
+        "SettingsPage deve possuir campos de entrada de texto"
+    );
+    assert!(
+        settings_content.contains("Testar Conexão"),
+        "SettingsPage deve possuir ação de testar conexão"
+    );
+    assert!(
+        settings_content.contains("Salvar"),
+        "SettingsPage deve possuir ação de salvar"
+    );
+}

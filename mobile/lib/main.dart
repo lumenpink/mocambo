@@ -20,17 +20,29 @@ class MocamboApp extends StatefulWidget {
 }
 
 class _MocamboAppState extends State<MocamboApp> {
-  final AppConfig _config = const AppConfig(serverUrl: 'http://127.0.0.1:8080');
-  late final ApiClient _apiClient;
-  late final OffloadManager _offloadManager;
+  AppConfig _config = const AppConfig();
+  late ApiClient _apiClient;
+  late OffloadManager _offloadManager;
   final List<MediaItem> _items = [];
   int _currentIndex = 0;
 
   @override
   void initState() {
     super.initState();
+    _initServices();
+  }
+
+  void _initServices() {
     _apiClient = ApiClient(config: _config);
     _offloadManager = OffloadManager(config: _config, apiClient: _apiClient);
+  }
+
+  void _updateConfig(AppConfig newConfig) {
+    setState(() {
+      _config = newConfig;
+      _apiClient.close();
+      _initServices();
+    });
   }
 
   @override
@@ -45,7 +57,7 @@ class _MocamboAppState extends State<MocamboApp> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(
-          'Offload de 15 dias: ${result.offloadedCount} liberados, ${result.skippedCount} mantidos.',
+          'Offload de ${_config.retentionDays} dias: ${result.offloadedCount} liberados, ${result.skippedCount} mantidos.',
         ),
       ),
     );
@@ -57,7 +69,10 @@ class _MocamboAppState extends State<MocamboApp> {
     final pages = [
       GalleryPage(items: _items, onTriggerOffload: _handleOffload),
       SearchPage(apiClient: _apiClient),
-      SettingsPage(config: _config),
+      SettingsPage(
+        config: _config,
+        onConfigSaved: _updateConfig,
+      ),
     ];
 
     return MaterialApp(
