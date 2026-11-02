@@ -5,12 +5,14 @@ import '../models/media_item.dart';
 class GalleryPage extends StatelessWidget {
   final List<MediaItem> items;
   final VoidCallback onTriggerOffload;
+  final VoidCallback? onTriggerSync;
   final VoidCallback? onRefresh;
 
   const GalleryPage({
     super.key,
     required this.items,
     required this.onTriggerOffload,
+    this.onTriggerSync,
     this.onRefresh,
   });
 
@@ -25,6 +27,12 @@ class GalleryPage extends StatelessWidget {
               icon: const Icon(Icons.refresh),
               tooltip: 'Escanear / Atualizar Mídias',
               onPressed: onRefresh,
+            ),
+          if (onTriggerSync != null)
+            IconButton(
+              icon: const Icon(Icons.cloud_upload_outlined),
+              tooltip: 'Sincronizar com o Servidor',
+              onPressed: onTriggerSync,
             ),
           IconButton(
             icon: const Icon(Icons.cloud_sync_outlined),
@@ -51,14 +59,26 @@ class GalleryPage extends StatelessWidget {
                       style: TextStyle(color: Colors.grey, fontSize: 16),
                       textAlign: TextAlign.center,
                     ),
-                    if (onRefresh != null) ...[
-                      const SizedBox(height: 16),
-                      FilledButton.icon(
-                        onPressed: onRefresh,
-                        icon: const Icon(Icons.search),
-                        label: const Text('Escanear Galeria Local'),
-                      ),
-                    ],
+                    const SizedBox(height: 16),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      alignment: WrapAlignment.center,
+                      children: [
+                        if (onRefresh != null)
+                          FilledButton.icon(
+                            onPressed: onRefresh,
+                            icon: const Icon(Icons.search),
+                            label: const Text('Escanear Galeria Local'),
+                          ),
+                        if (onTriggerSync != null)
+                          OutlinedButton.icon(
+                            onPressed: onTriggerSync,
+                            icon: const Icon(Icons.cloud_upload),
+                            label: const Text('Sincronizar com o Servidor'),
+                          ),
+                      ],
+                    ),
                   ],
                 ),
               ),

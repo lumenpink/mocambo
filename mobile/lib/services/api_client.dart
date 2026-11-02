@@ -12,11 +12,33 @@ class ApiClient {
     http.Client? client,
   }) : _client = client ?? http.Client();
 
+  Map<String, String> get _headers {
+    final headers = <String, String>{};
+    if (config.password.isNotEmpty) {
+      headers['Authorization'] = 'Bearer ${config.password}';
+    }
+    return headers;
+  }
+
+  /// Realiza o handshake com o backend checando o endpoint /health.
+  Future<bool> handshake() async {
+    if (!config.isConfigured) return false;
+    try {
+      final uri = Uri.parse(config.healthUrl);
+      final response = await _client
+          .get(uri, headers: _headers)
+          .timeout(const Duration(seconds: 5));
+      return response.statusCode == 200;
+    } catch (_) {
+      return false;
+    }
+  }
+
   /// Checa se o arquivo existe e o hash confere no servidor via HEAD /api/files/check/{hash}
   Future<bool> checkFileExists(String sha256) async {
     try {
       final uri = Uri.parse('${config.cleanBaseUrl}/api/files/check/$sha256');
-      final response = await _client.head(uri);
+      final response = await _client.head(uri, headers: _headers);
       return response.statusCode == 200;
     } catch (_) {
       return false;
@@ -24,12 +46,13 @@ class ApiClient {
   }
 
   /// Busca semântica e textual via GET /api/search?q=...
-  Future<List<SearchResultItem>> search(String query, {int limit = 20, int offset = 0}) async {
+  Future<List<SearchResultItem>> search(String query,
+      {int limit = 20, int offset = 0}) async {
     try {
       final uri = Uri.parse(
         '${config.cleanBaseUrl}/api/search?q=${Uri.encodeComponent(query)}&limit=$limit&offset=$offset',
       );
-      final response = await _client.get(uri);
+      final response = await _client.get(uri, headers: _headers);
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body) as Map<String, dynamic>;
         final results = data['results'] as List<dynamic>? ?? [];

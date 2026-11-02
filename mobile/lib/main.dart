@@ -5,6 +5,7 @@ import 'models/media_item.dart';
 import 'services/api_client.dart';
 import 'services/media_scanner.dart';
 import 'services/offload_manager.dart';
+import 'services/webdav_sync.dart';
 import 'views/gallery_page.dart';
 import 'views/search_page.dart';
 import 'views/settings_page.dart';
@@ -24,6 +25,7 @@ class MocamboApp extends StatefulWidget {
 class _MocamboAppState extends State<MocamboApp> {
   AppConfig _config = const AppConfig();
   late ApiClient _apiClient;
+  late WebDavSyncService _webDavSync;
   late OffloadManager _offloadManager;
   final MediaScanner _mediaScanner = const MediaScanner();
   final List<MediaItem> _items = [];
@@ -37,6 +39,7 @@ class _MocamboAppState extends State<MocamboApp> {
 
   void _initServices() {
     _apiClient = ApiClient(config: _config);
+    _webDavSync = WebDavSyncService(config: _config);
     _offloadManager = OffloadManager(config: _config, apiClient: _apiClient);
   }
 
@@ -44,6 +47,7 @@ class _MocamboAppState extends State<MocamboApp> {
     setState(() {
       _config = newConfig;
       _apiClient.close();
+      _webDavSync.close();
       _initServices();
     });
   }
@@ -70,9 +74,54 @@ class _MocamboAppState extends State<MocamboApp> {
     }
   }
 
+  Future<void> _handleSyncWithServer() async {
+    if (!_config.isConfigured) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Servidor não configurado. Por favor, acesse os Ajustes primeiro.',
+          ),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+
+    final healthy = await _apiClient.handshake();
+    if (!healthy) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Falha de handshake: servidor inalcançável em ${_config.cleanBaseUrl}.',
+          ),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    final syncResult = await _webDavSync.syncPendingMedia(_items);
+    final offloadResult = await _offloadManager.processOffload(_items);
+
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          'Sincronizado: ${syncResult.successfulUploads} enviados (${syncResult.failedUploads} erros). '
+          'Offload: ${offloadResult.offloadedCount} liberados.',
+        ),
+        backgroundColor: Colors.green,
+      ),
+    );
+    setState(() {});
+  }
+
   @override
   void dispose() {
     _apiClient.close();
+    _webDavSync.close();
     super.dispose();
   }
 
@@ -95,6 +144,7 @@ class _MocamboAppState extends State<MocamboApp> {
       GalleryPage(
         items: _items,
         onTriggerOffload: _handleOffload,
+        onTriggerSync: _handleSyncWithServer,
         onRefresh: _handleScanMedia,
       ),
       SearchPage(apiClient: _apiClient),

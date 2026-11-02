@@ -220,3 +220,24 @@ fn test_mobile_permissions_and_media_scanner_contract() {
         "media_scanner.dart deve declarar o método scanDirectory"
     );
 }
+
+#[test]
+fn test_mobile_handshake_and_sync_contract() {
+    let api_client_code = fs::read_to_string("mobile/lib/services/api_client.dart").unwrap();
+    assert!(
+        api_client_code.contains("handshake"),
+        "api_client.dart deve conter o método handshake()"
+    );
+
+    let webdav_code = fs::read_to_string("mobile/lib/services/webdav_sync.dart").unwrap();
+    assert!(
+        webdav_code.contains("syncPendingMedia"),
+        "webdav_sync.dart deve conter o método syncPendingMedia()"
+    );
+
+    let main_code = fs::read_to_string("mobile/lib/main.dart").unwrap();
+    assert!(
+        main_code.contains("handshake"),
+        "main.dart deve utilizar o handshake antes de sincronizar"
+    );
+}
