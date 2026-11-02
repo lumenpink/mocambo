@@ -13,6 +13,8 @@ pub struct FileRecord {
     pub file_size: i64,
     pub sha256: String,
     pub mime_type: String,
+    pub source: Option<String>,
+    pub original_path: Option<String>,
     pub created_at: i64,
     pub mtime: i64,
     pub analysis_status: String,
@@ -67,6 +69,8 @@ impl Database {
                  file_size INTEGER NOT NULL,
                  sha256 TEXT NOT NULL,
                  mime_type TEXT NOT NULL,
+                 source TEXT,
+                 original_path TEXT,
                  created_at INTEGER NOT NULL,
                  mtime INTEGER NOT NULL,
                  analysis_status TEXT NOT NULL DEFAULT 'pending'
@@ -74,6 +78,7 @@ impl Database {
              
              CREATE INDEX IF NOT EXISTS idx_files_sha256 ON files(sha256);
              CREATE INDEX IF NOT EXISTS idx_files_path ON files(storage_path);
+             CREATE INDEX IF NOT EXISTS idx_files_source ON files(source);
 
              CREATE TABLE IF NOT EXISTS shares (
                  id TEXT PRIMARY KEY,
@@ -110,6 +115,14 @@ impl Database {
              CREATE INDEX IF NOT EXISTS idx_files_vec_path ON files_vec(storage_path);",
         )?;
 
+        // Migrações seguras e idempotentes para bases já existentes
+        let _ = conn.execute("ALTER TABLE files ADD COLUMN source TEXT", []);
+        let _ = conn.execute("ALTER TABLE files ADD COLUMN original_path TEXT", []);
+        let _ = conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_files_source ON files(source)",
+            [],
+        );
+
         Ok(Self {
             conn: Arc::new(Mutex::new(conn)),
         })
@@ -124,6 +137,30 @@ impl Database {
         sha256: &str,
         mime_type: &str,
     ) -> Result<(), rusqlite::Error> {
+        self.record_file_with_metadata(
+            user_id,
+            storage_path,
+            file_name,
+            file_size,
+            sha256,
+            mime_type,
+            None,
+            None,
+        )
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    pub fn record_file_with_metadata(
+        &self,
+        user_id: &str,
+        storage_path: &str,
+        file_name: &str,
+        file_size: i64,
+        sha256: &str,
+        mime_type: &str,
+        source: Option<&str>,
+        original_path: Option<&str>,
+    ) -> Result<(), rusqlite::Error> {
         let now = SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .unwrap_or_default()
@@ -131,14 +168,26 @@ impl Database {
 
         let conn = self.conn.lock().unwrap();
         conn.execute(
-            "INSERT INTO files (user_id, storage_path, file_name, file_size, sha256, mime_type, created_at, mtime, analysis_status)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?7, 'pending')
+            "INSERT INTO files (user_id, storage_path, file_name, file_size, sha256, mime_type, source, original_path, created_at, mtime, analysis_status)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?9, 'pending')
              ON CONFLICT(storage_path) DO UPDATE SET
                  file_size = excluded.file_size,
                  sha256 = excluded.sha256,
                  mime_type = excluded.mime_type,
+                 source = COALESCE(excluded.source, files.source),
+                 original_path = COALESCE(excluded.original_path, files.original_path),
                  mtime = excluded.mtime",
-            params![user_id, storage_path, file_name, file_size, sha256, mime_type, now],
+            params![
+                user_id,
+                storage_path,
+                file_name,
+                file_size,
+                sha256,
+                mime_type,
+                source,
+                original_path,
+                now
+            ],
         )?;
 
         Ok(())
@@ -147,7 +196,7 @@ impl Database {
     pub fn get_file_by_hash(&self, hash: &str) -> Result<Option<FileRecord>, rusqlite::Error> {
         let conn = self.conn.lock().unwrap();
         let mut stmt = conn.prepare(
-            "SELECT id, user_id, storage_path, file_name, file_size, sha256, mime_type, created_at, mtime, analysis_status
+            "SELECT id, user_id, storage_path, file_name, file_size, sha256, mime_type, source, original_path, created_at, mtime, analysis_status
              FROM files WHERE sha256 = ?1 LIMIT 1",
         )?;
 
@@ -161,9 +210,11 @@ impl Database {
                 file_size: row.get(4)?,
                 sha256: row.get(5)?,
                 mime_type: row.get(6)?,
-                created_at: row.get(7)?,
-                mtime: row.get(8)?,
-                analysis_status: row.get(9)?,
+                source: row.get(7)?,
+                original_path: row.get(8)?,
+                created_at: row.get(9)?,
+                mtime: row.get(10)?,
+                analysis_status: row.get(11)?,
             }))
         } else {
             Ok(None)
@@ -199,15 +250,20 @@ impl Database {
         &self,
         storage_path: &str,
     ) -> Result<Option<FileRecord>, rusqlite::Error> {
-        let clean = storage_path.trim_start_matches('/');
+        let clean = storage_path
+            .trim_start_matches('/')
+            .trim_start_matches("dav/")
+            .trim_start_matches('/');
         let with_slash = format!("/{}", clean);
+        let with_dav = format!("/dav/{}", clean);
+        let dav_no_slash = format!("dav/{}", clean);
         let conn = self.conn.lock().unwrap();
         let mut stmt = conn.prepare(
-            "SELECT id, user_id, storage_path, file_name, file_size, sha256, mime_type, created_at, mtime, analysis_status
-             FROM files WHERE storage_path = ?1 OR storage_path = ?2 LIMIT 1",
+            "SELECT id, user_id, storage_path, file_name, file_size, sha256, mime_type, source, original_path, created_at, mtime, analysis_status
+             FROM files WHERE storage_path = ?1 OR storage_path = ?2 OR storage_path = ?3 OR storage_path = ?4 LIMIT 1",
         )?;
 
-        let mut rows = stmt.query(params![clean, with_slash])?;
+        let mut rows = stmt.query(params![clean, with_slash, with_dav, dav_no_slash])?;
         if let Some(row) = rows.next()? {
             Ok(Some(FileRecord {
                 id: row.get(0)?,
@@ -217,9 +273,11 @@ impl Database {
                 file_size: row.get(4)?,
                 sha256: row.get(5)?,
                 mime_type: row.get(6)?,
-                created_at: row.get(7)?,
-                mtime: row.get(8)?,
-                analysis_status: row.get(9)?,
+                source: row.get(7)?,
+                original_path: row.get(8)?,
+                created_at: row.get(9)?,
+                mtime: row.get(10)?,
+                analysis_status: row.get(11)?,
             }))
         } else {
             Ok(None)
@@ -425,7 +483,7 @@ impl Database {
     pub fn get_file_by_id(&self, file_id: i64) -> Result<Option<FileRecord>, rusqlite::Error> {
         let conn = self.conn.lock().unwrap();
         let mut stmt = conn.prepare(
-            "SELECT id, user_id, storage_path, file_name, file_size, sha256, mime_type, created_at, mtime, analysis_status
+            "SELECT id, user_id, storage_path, file_name, file_size, sha256, mime_type, source, original_path, created_at, mtime, analysis_status
              FROM files WHERE id = ?1 LIMIT 1",
         )?;
 
@@ -439,13 +497,57 @@ impl Database {
                 file_size: row.get(4)?,
                 sha256: row.get(5)?,
                 mime_type: row.get(6)?,
-                created_at: row.get(7)?,
-                mtime: row.get(8)?,
-                analysis_status: row.get(9)?,
+                source: row.get(7)?,
+                original_path: row.get(8)?,
+                created_at: row.get(9)?,
+                mtime: row.get(10)?,
+                analysis_status: row.get(11)?,
             }))
         } else {
             Ok(None)
         }
+    }
+
+    pub fn get_sources(&self) -> Result<Vec<String>, rusqlite::Error> {
+        let conn = self.conn.lock().unwrap();
+        let mut stmt = conn.prepare(
+            "SELECT DISTINCT source FROM files WHERE source IS NOT NULL AND source != '' ORDER BY source ASC",
+        )?;
+        let rows = stmt.query_map([], |row| row.get(0))?;
+        let mut sources = Vec::new();
+        for s in rows {
+            sources.push(s?);
+        }
+        Ok(sources)
+    }
+
+    pub fn get_files_by_source(&self, source: &str) -> Result<Vec<FileRecord>, rusqlite::Error> {
+        let conn = self.conn.lock().unwrap();
+        let mut stmt = conn.prepare(
+            "SELECT id, user_id, storage_path, file_name, file_size, sha256, mime_type, source, original_path, created_at, mtime, analysis_status
+             FROM files WHERE source = ?1 ORDER BY created_at DESC",
+        )?;
+        let rows = stmt.query_map(params![source], |row| {
+            Ok(FileRecord {
+                id: row.get(0)?,
+                user_id: row.get(1)?,
+                storage_path: row.get(2)?,
+                file_name: row.get(3)?,
+                file_size: row.get(4)?,
+                sha256: row.get(5)?,
+                mime_type: row.get(6)?,
+                source: row.get(7)?,
+                original_path: row.get(8)?,
+                created_at: row.get(9)?,
+                mtime: row.get(10)?,
+                analysis_status: row.get(11)?,
+            })
+        })?;
+        let mut files = Vec::new();
+        for f in rows {
+            files.push(f?);
+        }
+        Ok(files)
     }
 
     pub fn index_image_vector(

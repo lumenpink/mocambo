@@ -35,6 +35,7 @@ pub async fn create_app(
         Some(fuxico.clone()),
         Some(indexer_handle),
     );
+    let fs_for_fallback = (*fs).clone();
     let dav_handler = Arc::new(
         DavHandler::builder()
             .strip_prefix("/dav")
@@ -50,7 +51,23 @@ pub async fn create_app(
     };
     let app = api_router(state).fallback(move |req: Request| {
         let handler = dav_handler.clone();
+        let fs = fs_for_fallback.clone();
         async move {
+            if req.method() == http::Method::PUT {
+                let path = req.uri().path().to_string();
+                if let Some(source) = req
+                    .headers()
+                    .get("x-mocambo-source")
+                    .and_then(|v| v.to_str().ok())
+                {
+                    let original_path = req
+                        .headers()
+                        .get("x-mocambo-original-path")
+                        .and_then(|v| v.to_str().ok())
+                        .map(|s| s.to_string());
+                    fs.register_pending_metadata(&path, source.to_string(), original_path);
+                }
+            }
             let res = handler.handle(req).await;
             res.map(Body::new)
         }

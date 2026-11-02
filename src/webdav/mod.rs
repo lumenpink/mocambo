@@ -14,7 +14,10 @@ use std::io::{BufReader, Read, SeekFrom};
 use std::path::PathBuf;
 use std::pin::Pin;
 
-use std::sync::Arc;
+use std::collections::HashMap;
+use std::sync::{Arc, Mutex};
+
+pub type PendingMetadataMap = Arc<Mutex<HashMap<String, (String, Option<String>)>>>;
 
 #[derive(Clone)]
 pub struct InterceptingFs {
@@ -24,6 +27,7 @@ pub struct InterceptingFs {
     user_id: String,
     fuxico: Option<Arc<crate::fuxico::FuxicoClient>>,
     indexer: Option<crate::indexer::IndexerHandle>,
+    metadata_map: PendingMetadataMap,
 }
 
 impl InterceptingFs {
@@ -56,7 +60,23 @@ impl InterceptingFs {
             user_id,
             fuxico,
             indexer,
+            metadata_map: Arc::new(Mutex::new(HashMap::new())),
         })
+    }
+
+    pub fn register_pending_metadata(
+        &self,
+        path: &str,
+        source: String,
+        original_path: Option<String>,
+    ) {
+        let clean = path
+            .trim_start_matches('/')
+            .trim_start_matches("dav/")
+            .trim_start_matches('/');
+        let mut map = self.metadata_map.lock().unwrap();
+        map.insert(clean.to_string(), (source.clone(), original_path.clone()));
+        map.insert(path.to_string(), (source, original_path));
     }
 }
 
@@ -78,6 +98,7 @@ impl DavFileSystem for InterceptingFs {
                     dav_path_str: path.as_url_string().to_string(),
                     user_id: self.user_id.clone(),
                     indexer: self.indexer.clone(),
+                    metadata_map: self.metadata_map.clone(),
                 }) as Box<dyn DavFile>)
             } else {
                 Ok(file)
@@ -208,6 +229,7 @@ pub struct InterceptingFile {
     dav_path_str: String,
     user_id: String,
     indexer: Option<crate::indexer::IndexerHandle>,
+    metadata_map: PendingMetadataMap,
 }
 
 impl Debug for InterceptingFile {
@@ -267,13 +289,62 @@ impl DavFile for InterceptingFile {
                         .first_or_octet_stream()
                         .to_string();
 
-                    let _ = self.db.record_file(
+                    // Deduplicação no armazenamento: se outro arquivo com o mesmo hash já existir,
+                    // substituímos o arquivo gravado por um hardlink ao existente.
+                    if let Ok(Some(existing)) = self.db.get_file_by_hash(&hash) {
+                        let existing_clean = existing
+                            .storage_path
+                            .trim_start_matches('/')
+                            .trim_start_matches("dav/")
+                            .trim_start_matches('/');
+                        let existing_abs = self.root.join(existing_clean);
+                        if existing_abs.is_file() && existing_abs != full_path {
+                            let _ = std::fs::remove_file(&full_path);
+                            let _ = std::fs::hard_link(&existing_abs, &full_path);
+                        }
+                    }
+
+                    // Obter metadados da rota ou inferir da URL/pasta
+                    let (source, original_path) = {
+                        let mut map = self.metadata_map.lock().unwrap();
+                        let clean = self
+                            .dav_path_str
+                            .trim_start_matches('/')
+                            .trim_start_matches("dav/")
+                            .trim_start_matches('/');
+                        if let Some((s, op)) =
+                            map.remove(clean).or_else(|| map.remove(&self.dav_path_str))
+                        {
+                            (Some(s), op)
+                        } else {
+                            let path_lower = self.dav_path_str.to_lowercase();
+                            let s = if path_lower.contains("/whatsapp") {
+                                Some("WhatsApp".to_string())
+                            } else if path_lower.contains("/camera") || path_lower.contains("/dcim")
+                            {
+                                Some("Camera".to_string())
+                            } else if path_lower.contains("/screenshot") {
+                                Some("Screenshots".to_string())
+                            } else if path_lower.contains("/telegram") {
+                                Some("Telegram".to_string())
+                            } else if path_lower.contains("/download") {
+                                Some("Download".to_string())
+                            } else {
+                                None
+                            };
+                            (s, None)
+                        }
+                    };
+
+                    let _ = self.db.record_file_with_metadata(
                         &self.user_id,
                         &self.dav_path_str,
                         &file_name,
                         total_size,
                         &hash,
                         &mime,
+                        source.as_deref(),
+                        original_path.as_deref(),
                     );
 
                     if let Some(indexer) = &self.indexer {

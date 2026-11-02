@@ -30,6 +30,20 @@ pub struct CreateSharePayload {
 }
 
 #[derive(Debug, Deserialize)]
+pub struct DedupFilePayload {
+    pub sha256: String,
+    pub storage_path: String,
+    pub file_name: String,
+    pub source: Option<String>,
+    pub original_path: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct SourceQuery {
+    pub source: String,
+}
+
+#[derive(Debug, Deserialize)]
 pub struct SearchQuery {
     pub q: Option<String>,
     pub limit: Option<usize>,
@@ -55,6 +69,9 @@ pub fn router(state: AppState) -> Router {
             "/api/files/check/{hash}",
             get(check_file_get).head(check_file_head),
         )
+        .route("/api/files/dedup", post(dedup_file_handler))
+        .route("/api/files/sources", get(get_sources_handler))
+        .route("/api/files/by-source", get(get_files_by_source_handler))
         .route("/api/shares", post(create_share_handler))
         .route("/api/shares/{token}", delete(revoke_share_handler))
         .route("/api/internal/stream/{token}", get(stream_share_handler))
@@ -95,6 +112,8 @@ async fn check_file_get(
                 "sha256": record.sha256,
                 "mime_type": record.mime_type,
                 "storage_path": record.storage_path,
+                "source": record.source,
+                "original_path": record.original_path,
                 "created_at": record.created_at,
                 "mtime": record.mtime,
                 "analysis_status": record.analysis_status,
@@ -106,6 +125,126 @@ async fn check_file_get(
                 "exists": false,
                 "error": "Arquivo não encontrado para este hash SHA-256"
             })),
+        ),
+    }
+}
+
+async fn dedup_file_handler(
+    State(state): State<AppState>,
+    Json(payload): Json<DedupFilePayload>,
+) -> impl IntoResponse {
+    let existing = match state.db.get_file_by_hash(&payload.sha256) {
+        Ok(Some(rec)) => rec,
+        Ok(None) => {
+            return (
+                StatusCode::NOT_FOUND,
+                Json(json!({
+                    "error": "Hash não encontrado. Upload completo necessário."
+                })),
+            );
+        }
+        Err(e) => {
+            return (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(json!({ "error": format!("Erro no banco de dados: {}", e) })),
+            );
+        }
+    };
+
+    let target_clean = payload
+        .storage_path
+        .trim_start_matches('/')
+        .trim_start_matches("dav/")
+        .trim_start_matches('/');
+    let target_abs = state.config.storage_dir.join(target_clean);
+
+    let existing_clean = existing
+        .storage_path
+        .trim_start_matches('/')
+        .trim_start_matches("dav/")
+        .trim_start_matches('/');
+    let existing_abs = state.config.storage_dir.join(existing_clean);
+
+    if !existing_abs.exists() {
+        return (
+            StatusCode::NOT_FOUND,
+            Json(json!({
+                "error": "Arquivo físico de origem não encontrado no disco"
+            })),
+        );
+    }
+
+    if let Some(parent) = target_abs.parent() {
+        if let Err(e) = tokio::fs::create_dir_all(parent).await {
+            return (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(json!({ "error": format!("Erro ao criar diretórios: {}", e) })),
+            );
+        }
+    }
+
+    if !target_abs.exists() {
+        if let Err(e) = std::fs::hard_link(&existing_abs, &target_abs) {
+            if let Err(copy_err) = std::fs::copy(&existing_abs, &target_abs) {
+                return (
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    Json(json!({
+                        "error": format!("Erro ao criar hardlink/cópia: {} / {}", e, copy_err)
+                    })),
+                );
+            }
+        }
+    }
+
+    if let Err(e) = state.db.record_file_with_metadata(
+        "default",
+        &payload.storage_path,
+        &payload.file_name,
+        existing.file_size,
+        &payload.sha256,
+        &existing.mime_type,
+        payload.source.as_deref(),
+        payload.original_path.as_deref(),
+    ) {
+        return (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(json!({ "error": format!("Erro ao registrar arquivo no banco: {}", e) })),
+        );
+    }
+
+    (
+        StatusCode::CREATED,
+        Json(json!({
+            "status": "deduplicated",
+            "storage_path": payload.storage_path,
+            "sha256": payload.sha256,
+            "file_size": existing.file_size,
+            "mime_type": existing.mime_type,
+            "source": payload.source,
+            "original_path": payload.original_path
+        })),
+    )
+}
+
+async fn get_sources_handler(State(state): State<AppState>) -> impl IntoResponse {
+    match state.db.get_sources() {
+        Ok(sources) => (StatusCode::OK, Json(json!(sources))),
+        Err(e) => (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(json!({ "error": format!("Erro ao consultar origens: {}", e) })),
+        ),
+    }
+}
+
+async fn get_files_by_source_handler(
+    State(state): State<AppState>,
+    Query(query): Query<SourceQuery>,
+) -> impl IntoResponse {
+    match state.db.get_files_by_source(&query.source) {
+        Ok(files) => (StatusCode::OK, Json(json!(files))),
+        Err(e) => (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(json!({ "error": format!("Erro ao consultar arquivos por origem: {}", e) })),
         ),
     }
 }
