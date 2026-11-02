@@ -17,6 +17,27 @@ class MediaScanner {
 
   const MediaScanner();
 
+  /// Detecta a procedência/pasta de origem a partir do caminho do arquivo.
+  static String detectSource(String fullPath) {
+    final lower = fullPath.toLowerCase();
+    if (lower.contains('whatsapp') || lower.contains('com.whatsapp')) {
+      return 'WhatsApp';
+    } else if (lower.contains('camera') ||
+        lower.contains('dcim') ||
+        lower.contains('100andro')) {
+      return 'Camera';
+    } else if (lower.contains('screenshot')) {
+      return 'Screenshots';
+    } else if (lower.contains('telegram')) {
+      return 'Telegram';
+    } else if (lower.contains('download')) {
+      return 'Download';
+    } else if (lower.contains('instagram')) {
+      return 'Instagram';
+    }
+    return 'Outros';
+  }
+
   /// Varre um diretório do dispositivo por fotos e vídeos compatíveis.
   Future<List<MediaItem>> scanDirectory(
     String directoryPath, {
@@ -40,6 +61,8 @@ class MediaScanner {
         final bytes = await entity.readAsBytes();
         final hash = sha256.convert(bytes).toString();
         final name = p.basename(entity.path);
+        final source = detectSource(entity.path);
+        final relPath = p.relative(entity.path, from: directoryPath);
 
         items.add(
           MediaItem(
@@ -49,6 +72,8 @@ class MediaScanner {
             fileSize: stat.size,
             createdAt: stat.modified,
             sha256: hash,
+            source: source,
+            originalRelativePath: relPath,
             syncStatus: SyncStatus.pending,
           ),
         );

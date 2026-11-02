@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Features
+- **mobile:** deteccao de pasta de origem e deduplicacao de upload (closes #25)
 - **core:** deduplicacao de arquivos e metadados de origem de midia (closes #24)
 - **mobile:** fluxo de handshake e sincronizacao client-server (closes #23)
 - **mobile:** declarar permissoes no android e integracao com galeria local (closes #22)

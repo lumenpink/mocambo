@@ -241,3 +241,46 @@ fn test_mobile_handshake_and_sync_contract() {
         "main.dart deve utilizar o handshake antes de sincronizar"
     );
 }
+
+#[test]
+fn test_mobile_source_classification_and_dedup_contract() {
+    let scanner_code = fs::read_to_string("mobile/lib/services/media_scanner.dart").unwrap();
+    assert!(
+        scanner_code.contains("detectSource"),
+        "media_scanner.dart deve conter método detectSource"
+    );
+    assert!(
+        scanner_code.contains("source"),
+        "MediaItem deve conter o campo source"
+    );
+    assert!(
+        scanner_code.contains("originalRelativePath"),
+        "MediaItem deve conter o campo originalRelativePath"
+    );
+
+    let api_client_code = fs::read_to_string("mobile/lib/services/api_client.dart").unwrap();
+    assert!(
+        api_client_code.contains("dedupFile"),
+        "api_client.dart deve conter método dedupFile"
+    );
+
+    let sync_code = fs::read_to_string("mobile/lib/services/webdav_sync.dart").unwrap();
+    assert!(
+        sync_code.contains("X-Mocambo-Source"),
+        "webdav_sync.dart deve enviar header X-Mocambo-Source"
+    );
+    assert!(
+        sync_code.contains("dedupFile"),
+        "webdav_sync.dart deve chamar dedupFile para evitar upload duplicado"
+    );
+
+    let gallery_code = fs::read_to_string("mobile/lib/views/gallery_page.dart").unwrap();
+    assert!(
+        gallery_code.contains("WhatsApp"),
+        "gallery_page.dart deve conter filtro para WhatsApp"
+    );
+    assert!(
+        gallery_code.contains("Câmera") || gallery_code.contains("Camera"),
+        "gallery_page.dart deve conter filtro para Câmera"
+    );
+}

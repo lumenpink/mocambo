@@ -45,6 +45,35 @@ class ApiClient {
     }
   }
 
+  /// Alias semântico para verificação rápida de hash SHA-256.
+  Future<bool> checkHash(String sha256) async => checkFileExists(sha256);
+
+  /// Vincula um arquivo duplicado no servidor via POST /api/files/dedup evitando reenvio de bytes.
+  Future<bool> dedupFile({
+    required String hash,
+    required String storagePath,
+    required String fileName,
+    String? source,
+    String? originalPath,
+  }) async {
+    try {
+      final uri = Uri.parse('${config.cleanBaseUrl}/api/files/dedup');
+      final headers = Map<String, String>.from(_headers);
+      headers['Content-Type'] = 'application/json';
+      final payload = jsonEncode({
+        'sha256': hash,
+        'storage_path': storagePath,
+        'file_name': fileName,
+        'source': source,
+        'original_path': originalPath,
+      });
+      final response = await _client.post(uri, headers: headers, body: payload);
+      return response.statusCode == 201 || response.statusCode == 200;
+    } catch (_) {
+      return false;
+    }
+  }
+
   /// Busca semântica e textual via GET /api/search?q=...
   Future<List<SearchResultItem>> search(String query,
       {int limit = 20, int offset = 0}) async {

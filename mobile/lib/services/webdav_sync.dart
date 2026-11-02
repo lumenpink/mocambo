@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:http/http.dart' as http;
 import '../config/app_config.dart';
 import '../models/media_item.dart';
+import 'api_client.dart';
 
 class SyncResult {
   final int totalPending;
@@ -18,11 +19,14 @@ class SyncResult {
 class WebDavSyncService {
   final AppConfig config;
   final http.Client _client;
+  final ApiClient _apiClient;
 
   WebDavSyncService({
     required this.config,
     http.Client? client,
-  }) : _client = client ?? http.Client();
+    ApiClient? apiClient,
+  })  : _client = client ?? http.Client(),
+        _apiClient = apiClient ?? ApiClient(config: config, client: client);
 
   Map<String, String> get _headers {
     final headers = <String, String>{};
@@ -32,7 +36,7 @@ class WebDavSyncService {
     return headers;
   }
 
-  /// Sincroniza um item de mídia para o WebDAV do Mocambo (/dav/Timeline/YYYY/MM/arquivo.ext)
+  /// Sincroniza um item de mídia para o WebDAV do Mocambo com deduplicação prévia e metadados de origem
   Future<bool> uploadMedia(MediaItem item) async {
     try {
       final file = File(item.filePath);
@@ -40,16 +44,39 @@ class WebDavSyncService {
         return false;
       }
 
-      final bytes = await file.readAsBytes();
       final year = item.createdAt.year.toString();
       final month = item.createdAt.month.toString().padLeft(2, '0');
-      final targetUri = Uri.parse(
-        '${config.cleanBaseUrl}/dav/Timeline/$year/$month/${item.fileName}',
-      );
+      final storagePath = '/dav/Timeline/$year/$month/${item.fileName}';
+
+      // 1. Pré-checagem de deduplicação por hash SHA-256 no servidor
+      final alreadyExists = await _apiClient.checkHash(item.sha256);
+      if (alreadyExists) {
+        final linked = await _apiClient.dedupFile(
+          hash: item.sha256,
+          storagePath: storagePath,
+          fileName: item.fileName,
+          source: item.source,
+          originalPath: item.originalRelativePath,
+        );
+        if (linked) {
+          item.syncStatus = SyncStatus.synced;
+          return true;
+        }
+      }
+
+      // 2. Upload completo via WebDAV PUT com cabeçalhos de contexto de procedência
+      final bytes = await file.readAsBytes();
+      final targetUri = Uri.parse('${config.cleanBaseUrl}$storagePath');
+
+      final headers = Map<String, String>.from(_headers);
+      headers['X-Mocambo-Source'] = item.source;
+      if (item.originalRelativePath.isNotEmpty) {
+        headers['X-Mocambo-Original-Path'] = item.originalRelativePath;
+      }
 
       final response = await _client.put(
         targetUri,
-        headers: _headers,
+        headers: headers,
         body: bytes,
       );
 

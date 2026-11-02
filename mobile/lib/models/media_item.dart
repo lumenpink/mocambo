@@ -11,6 +11,8 @@ class MediaItem {
   final int fileSize;
   final DateTime createdAt;
   final String sha256;
+  final String source;
+  final String originalRelativePath;
   SyncStatus syncStatus;
 
   MediaItem({
@@ -20,6 +22,8 @@ class MediaItem {
     required this.fileSize,
     required this.createdAt,
     required this.sha256,
+    this.source = 'Outros',
+    this.originalRelativePath = '',
     this.syncStatus = SyncStatus.pending,
   });
 
@@ -36,6 +40,8 @@ class MediaItem {
         'fileSize': fileSize,
         'createdAt': createdAt.toIso8601String(),
         'sha256': sha256,
+        'source': source,
+        'originalRelativePath': originalRelativePath,
         'syncStatus': syncStatus.name,
       };
 
@@ -46,6 +52,8 @@ class MediaItem {
         fileSize: json['fileSize'] as int,
         createdAt: DateTime.parse(json['createdAt'] as String),
         sha256: json['sha256'] as String,
+        source: json['source'] as String? ?? 'Outros',
+        originalRelativePath: json['originalRelativePath'] as String? ?? '',
         syncStatus: SyncStatus.values.byName(
           json['syncStatus'] as String? ?? 'pending',
         ),
