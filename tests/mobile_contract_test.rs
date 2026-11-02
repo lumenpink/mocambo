@@ -106,3 +106,50 @@ async fn test_mobile_contract_api_endpoints() {
     assert_eq!(meta_json["sha256"], photo_hash);
     assert_eq!(meta_json["file_name"], "camera_photo.jpg");
 }
+
+#[test]
+fn test_mobile_visual_identity_canonical_mocambo() {
+    // Android Manifest
+    let android_manifest =
+        fs::read_to_string("mobile/android/app/src/main/AndroidManifest.xml").unwrap();
+    assert!(
+        android_manifest.contains("android:label=\"Mocambo\""),
+        "AndroidManifest.xml deve declarar android:label=\"Mocambo\""
+    );
+
+    // Flutter main.dart
+    let main_dart = fs::read_to_string("mobile/lib/main.dart").unwrap();
+    assert!(
+        main_dart.contains("title: 'Mocambo'"),
+        "mobile/lib/main.dart deve declarar title: 'Mocambo'"
+    );
+
+    // Linux GTK
+    let linux_app = fs::read_to_string("mobile/linux/runner/my_application.cc").unwrap();
+    assert!(
+        linux_app.contains("gtk_header_bar_set_title(header_bar, \"Mocambo\");"),
+        "my_application.cc deve definir header bar como Mocambo"
+    );
+    assert!(
+        linux_app.contains("gtk_window_set_title(window, \"Mocambo\");"),
+        "my_application.cc deve definir window title como Mocambo"
+    );
+
+    // Windows
+    let win_rc = fs::read_to_string("mobile/windows/runner/Runner.rc").unwrap();
+    assert!(win_rc.contains("\"ProductName\", \"Mocambo\""));
+    let win_main = fs::read_to_string("mobile/windows/runner/main.cpp").unwrap();
+    assert!(win_main.contains("window.Create(L\"Mocambo\", origin, size)"));
+
+    // macOS
+    let macos_info = fs::read_to_string("mobile/macos/Runner/Configs/AppInfo.xcconfig").unwrap();
+    assert!(macos_info.contains("PRODUCT_NAME = Mocambo"));
+
+    // iOS
+    let ios_info = fs::read_to_string("mobile/ios/Runner/Info.plist").unwrap();
+    assert!(ios_info.contains("<string>Mocambo</string>"));
+
+    // Web
+    let web_manifest = fs::read_to_string("mobile/web/manifest.json").unwrap();
+    assert!(web_manifest.contains("\"name\": \"Mocambo\""));
+}

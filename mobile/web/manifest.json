@@ -1,6 +1,6 @@
 {
-    "name": "mocambo_mobile",
-    "short_name": "mocambo_mobile",
+    "name": "Mocambo",
+    "short_name": "Mocambo",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",

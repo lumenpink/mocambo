@@ -61,7 +61,7 @@ class _MocamboAppState extends State<MocamboApp> {
     ];
 
     return MaterialApp(
-      title: 'Mocambo Mobile',
+      title: 'Mocambo',
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
         useMaterial3: true,
