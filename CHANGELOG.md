@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Features
+- **ci:** workflow de build de container, hub gambi e deploy continuo no obizero (closes #20)
+
 ### Changed
 - **ci:** remover campo permissions incompativel com forgejo actions (closes #14)
 - **build:** otimizar tamanho de binario com profile.release e habilitar linking estatico musl crt-static (closes #13)

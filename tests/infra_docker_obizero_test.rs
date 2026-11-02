@@ -80,3 +80,27 @@ fn test_caddyfile_reverse_proxy_and_vpn_routing() {
         "Caddyfile deve direcionar as requisições para o backend mocambo:8080"
     );
 }
+
+#[test]
+fn test_ci_cd_docker_build_and_obizero_deploy() {
+    let ci_path = Path::new(".forgejo/workflows/ci.yml");
+    assert!(ci_path.exists(), ".forgejo/workflows/ci.yml deve existir");
+
+    let ci_content = fs::read_to_string(ci_path).unwrap();
+    assert!(
+        ci_content.contains("build-and-deploy-docker:"),
+        "Workflow ci.yml deve conter o job build-and-deploy-docker"
+    );
+    assert!(
+        ci_content.contains("gambi.2lp.in/lumen/mocambo:latest"),
+        "Workflow ci.yml deve publicar a imagem gambi.2lp.in/lumen/mocambo:latest"
+    );
+    assert!(
+        ci_content.contains("cd ~/stacks/mocambo"),
+        "Workflow ci.yml deve navegar para ~/stacks/mocambo no obizero"
+    );
+    assert!(
+        ci_content.contains("docker compose -f compose.yml up -d --no-build mocambo"),
+        "Workflow ci.yml deve reiniciar o container mocambo no obizero"
+    );
+}
