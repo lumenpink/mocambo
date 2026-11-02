@@ -1,7 +1,9 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'config/app_config.dart';
 import 'models/media_item.dart';
 import 'services/api_client.dart';
+import 'services/media_scanner.dart';
 import 'services/offload_manager.dart';
 import 'views/gallery_page.dart';
 import 'views/search_page.dart';
@@ -23,6 +25,7 @@ class _MocamboAppState extends State<MocamboApp> {
   AppConfig _config = const AppConfig();
   late ApiClient _apiClient;
   late OffloadManager _offloadManager;
+  final MediaScanner _mediaScanner = const MediaScanner();
   final List<MediaItem> _items = [];
   int _currentIndex = 0;
 
@@ -43,6 +46,28 @@ class _MocamboAppState extends State<MocamboApp> {
       _apiClient.close();
       _initServices();
     });
+  }
+
+  Future<void> _handleScanMedia() async {
+    final home = Platform.environment['HOME'] ?? '';
+    final candidates = [
+      '/sdcard/DCIM/Camera',
+      '/sdcard/Pictures',
+      if (home.isNotEmpty) '$home/Pictures',
+      './test_media',
+    ];
+    for (final dir in candidates) {
+      if (Directory(dir).existsSync()) {
+        final scanned = await _mediaScanner.scanDirectory(dir);
+        if (scanned.isNotEmpty) {
+          setState(() {
+            _items.removeWhere((i) => scanned.any((s) => s.id == i.id));
+            _items.insertAll(0, scanned);
+          });
+          break;
+        }
+      }
+    }
   }
 
   @override
@@ -67,7 +92,11 @@ class _MocamboAppState extends State<MocamboApp> {
   @override
   Widget build(BuildContext context) {
     final pages = [
-      GalleryPage(items: _items, onTriggerOffload: _handleOffload),
+      GalleryPage(
+        items: _items,
+        onTriggerOffload: _handleOffload,
+        onRefresh: _handleScanMedia,
+      ),
       SearchPage(apiClient: _apiClient),
       SettingsPage(
         config: _config,

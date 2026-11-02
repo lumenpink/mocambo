@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Features
+- **mobile:** declarar permissoes no android e integracao com galeria local (closes #22)
 - **mobile:** tela de configuracoes editavel, persistente e sem defaults preenchidos (closes #21)
 - **ci:** workflow de build de container, hub gambi e deploy continuo no obizero (closes #20)
 

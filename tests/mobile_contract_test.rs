@@ -184,3 +184,39 @@ fn test_settings_page_editable_form_and_no_defaults() {
         "SettingsPage deve possuir ação de salvar"
     );
 }
+
+#[test]
+fn test_mobile_permissions_and_media_scanner_contract() {
+    let android_manifest =
+        fs::read_to_string("mobile/android/app/src/main/AndroidManifest.xml").unwrap();
+    assert!(
+        android_manifest.contains("android.permission.INTERNET"),
+        "AndroidManifest.xml deve declarar a permissão INTERNET"
+    );
+    assert!(
+        android_manifest.contains("android.permission.READ_MEDIA_IMAGES"),
+        "AndroidManifest.xml deve declarar a permissão READ_MEDIA_IMAGES"
+    );
+
+    let ios_plist = fs::read_to_string("mobile/ios/Runner/Info.plist").unwrap();
+    assert!(
+        ios_plist.contains("NSPhotoLibraryUsageDescription"),
+        "Info.plist deve declarar permissão para leitura de fotos"
+    );
+
+    let scanner_path = Path::new("mobile/lib/services/media_scanner.dart");
+    assert!(
+        scanner_path.exists(),
+        "mobile/lib/services/media_scanner.dart deve existir"
+    );
+
+    let scanner_content = fs::read_to_string(scanner_path).unwrap();
+    assert!(
+        scanner_content.contains("MediaScanner"),
+        "media_scanner.dart deve declarar a classe MediaScanner"
+    );
+    assert!(
+        scanner_content.contains("scanDirectory"),
+        "media_scanner.dart deve declarar o método scanDirectory"
+    );
+}
