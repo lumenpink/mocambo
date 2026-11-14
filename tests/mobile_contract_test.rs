@@ -284,3 +284,37 @@ fn test_mobile_source_classification_and_dedup_contract() {
         "gallery_page.dart deve conter filtro para Câmera"
     );
 }
+
+#[test]
+fn test_android_namespace_and_kotlin_package_contract() {
+    let gradle_path = Path::new("mobile/android/app/build.gradle.kts");
+    assert!(gradle_path.exists(), "build.gradle.kts deve existir");
+
+    let gradle_content = fs::read_to_string(gradle_path).unwrap();
+    assert!(
+        gradle_content.contains("namespace = \"in.twolp.mocambo\""),
+        "build.gradle.kts deve declarar namespace = \"in.twolp.mocambo\""
+    );
+    assert!(
+        gradle_content.contains("applicationId = \"in.twolp.mocambo\""),
+        "build.gradle.kts deve manter applicationId = \"in.twolp.mocambo\""
+    );
+
+    let old_kt = Path::new("mobile/android/app/src/main/kotlin/twolp/in/mocambo/MainActivity.kt");
+    assert!(
+        !old_kt.exists(),
+        "Caminho invertido twolp/in/mocambo/MainActivity.kt nao deve mais existir"
+    );
+
+    let new_kt = Path::new("mobile/android/app/src/main/kotlin/in/twolp/mocambo/MainActivity.kt");
+    assert!(
+        new_kt.exists(),
+        "Novo caminho canônico in/twolp/mocambo/MainActivity.kt deve existir"
+    );
+
+    let kt_content = fs::read_to_string(new_kt).unwrap();
+    assert!(
+        kt_content.contains("package `in`.twolp.mocambo"),
+        "MainActivity.kt deve declarar package `in`.twolp.mocambo com crases de escape"
+    );
+}
