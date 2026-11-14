@@ -5,7 +5,7 @@ plugins {
 }
 
 android {
-    namespace = "twolp.in.mocambo"
+    namespace = "in.twolp.mocambo"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
 
