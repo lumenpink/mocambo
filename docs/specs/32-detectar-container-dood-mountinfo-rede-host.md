@@ -43,3 +43,10 @@ Em `tests/distribution_contract_test.rs`:
 4. **Fase 7 (Mutation Test):** Validar comportamento com variáveis ausentes e caminhos inexistentes.
 5. **Fase 8 (Quality Gate):** Validar `cargo fmt --check`, `cargo clippy --all-targets -- -D warnings` e `cargo test --test distribution_contract_test`.
 6. **Fase 9 (Finish & Close):** Commit com Conventional Commits e submissão via `cccp`.
+
+## 5. Validação e Encerramento
+
+- **Testes de Contrato:** 7/7 testes aprovados em `tests/distribution_contract_test.rs`.
+- **Quality Gates:** `cargo fmt --check` e `cargo clippy --all-targets -- -D warnings` sem pendências.
+- **Detecção Concluída:** A autodetecção do container via `/proc/self/mountinfo` garante a execução correta sob `--net=host` no runner.
+
