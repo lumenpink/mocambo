@@ -124,6 +124,14 @@ fn test_apk_flutter_and_r2_contract() {
         script_content.contains("CURRENT_CONTAINER"),
         "package-apk.sh deve inspecionar CURRENT_CONTAINER para propagação de volumes"
     );
+    assert!(
+        script_content.contains("/proc/self/mountinfo"),
+        "package-apk.sh deve consultar /proc/self/mountinfo para resolver container DooD sob rede host"
+    );
+    assert!(
+        script_content.contains("/containers/"),
+        "package-apk.sh deve extrair ID canônico de container a partir de /containers/<CID>"
+    );
 }
 
 #[test]

@@ -88,8 +88,30 @@ elif command -v docker >/dev/null 2>&1; then
         )
 
         CURRENT_CONTAINER=""
-        if [ -f "/etc/hostname" ]; then
-            CURRENT_CONTAINER="$(head -n 1 /etc/hostname | tr -d '[:space:]')"
+        # 1. Tentar extrair ID do container a partir de /proc/self/mountinfo (funciona mesmo sob rede host)
+        if [ -f "/proc/self/mountinfo" ]; then
+            CURRENT_CONTAINER="$(grep -m1 -o '/containers/[a-f0-9]\{64\}' /proc/self/mountinfo 2>/dev/null | cut -d'/' -f3 || true)"
+        fi
+
+        # 2. Se vazio, tentar extrair de /proc/self/cgroup
+        if [ -z "$CURRENT_CONTAINER" ] && [ -f "/proc/self/cgroup" ]; then
+            CURRENT_CONTAINER="$(grep -m1 -o '[a-f0-9]\{64\}' /proc/self/cgroup 2>/dev/null || true)"
+        fi
+
+        # 3. Se vazio, tentar /etc/hostname (válido para containers em rede bridge tradicional)
+        if [ -z "$CURRENT_CONTAINER" ] && [ -f "/etc/hostname" ]; then
+            CANDIDATE="$(head -n 1 /etc/hostname | tr -d '[:space:]')"
+            if [ -n "$CANDIDATE" ] && docker inspect "$CANDIDATE" >/dev/null 2>&1; then
+                CURRENT_CONTAINER="$CANDIDATE"
+            fi
+        fi
+
+        # 4. Se ainda vazio e estiver em CI (Forgejo/Act), buscar container ativo do runner
+        if [ -z "$CURRENT_CONTAINER" ] && { [ -n "${GITHUB_ACTIONS:-}" ] || [ -n "${ACT:-}" ]; }; then
+            CURRENT_CONTAINER="$(docker ps --filter "name=FORGEJO-ACTIONS" --format "{{.ID}}" 2>/dev/null | head -n 1 || true)"
+            if [ -z "$CURRENT_CONTAINER" ]; then
+                CURRENT_CONTAINER="$(docker ps --filter "name=act-" --format "{{.ID}}" 2>/dev/null | head -n 1 || true)"
+            fi
         fi
 
         if [ -n "$CURRENT_CONTAINER" ] && docker inspect "$CURRENT_CONTAINER" >/dev/null 2>&1; then
