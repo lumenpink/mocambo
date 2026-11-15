@@ -79,23 +79,46 @@ elif command -v docker >/dev/null 2>&1; then
 
     if docker image inspect "$DOCKER_IMG" >/dev/null 2>&1; then
         echo "-> Compilando APK Flutter (release) hermeticamente via sub-imagem gost-ci-flutter ($DOCKER_IMG)..."
-        GRADLE_CACHE_ARG=""
-        if [ -d "$HOME/.gradle" ]; then
-            GRADLE_CACHE_ARG="-v $HOME/.gradle:/root/.gradle"
-        fi
-        PUB_CACHE_DIR="${PUB_CACHE_DIR:-$HOME/.pub-cache}"
-        mkdir -p "$PUB_CACHE_DIR"
-        NDK_CACHE_DIR="${NDK_CACHE_DIR:-$HOME/.cache/android-sdk-ndk}"
-        mkdir -p "$NDK_CACHE_DIR"
+        DOCKER_RUN_OPTS=(
+            --rm
+            --network=host
+            -e GIT_CONFIG_COUNT=1
+            -e GIT_CONFIG_KEY_0=safe.directory
+            -e GIT_CONFIG_VALUE_0='*'
+        )
 
-        docker run --rm \
-            --network=host \
-            -e GIT_CONFIG_COUNT=1 -e GIT_CONFIG_KEY_0=safe.directory -e GIT_CONFIG_VALUE_0='*' \
-            $GRADLE_CACHE_ARG \
-            -v "$PUB_CACHE_DIR:/root/.pub-cache" \
-            -v "$NDK_CACHE_DIR:/opt/android-sdk/ndk" \
-            -v "$REPO_ROOT:/workspace" \
-            -w /workspace/mobile \
+        CURRENT_CONTAINER=""
+        if [ -f "/etc/hostname" ]; then
+            CURRENT_CONTAINER="$(head -n 1 /etc/hostname | tr -d '[:space:]')"
+        fi
+
+        if [ -n "$CURRENT_CONTAINER" ] && docker inspect "$CURRENT_CONTAINER" >/dev/null 2>&1; then
+            echo "-> Detectado ambiente de container DooD ($CURRENT_CONTAINER); compartilhando volumes via --volumes-from..."
+            DOCKER_RUN_OPTS+=(
+                --volumes-from "$CURRENT_CONTAINER"
+                -w "$MOBILE_DIR"
+            )
+        else
+            echo "-> Ambiente host detectado; aplicando montagens diretas de diretório..."
+            GRADLE_CACHE_ARG=""
+            if [ -d "$HOME/.gradle" ]; then
+                GRADLE_CACHE_ARG="-v $HOME/.gradle:/root/.gradle"
+            fi
+            PUB_CACHE_DIR="${PUB_CACHE_DIR:-$HOME/.pub-cache}"
+            mkdir -p "$PUB_CACHE_DIR"
+            NDK_CACHE_DIR="${NDK_CACHE_DIR:-$HOME/.cache/android-sdk-ndk}"
+            mkdir -p "$NDK_CACHE_DIR"
+
+            [ -n "$GRADLE_CACHE_ARG" ] && DOCKER_RUN_OPTS+=($GRADLE_CACHE_ARG)
+            DOCKER_RUN_OPTS+=(
+                -v "$PUB_CACHE_DIR:/root/.pub-cache"
+                -v "$NDK_CACHE_DIR:/opt/android-sdk/ndk"
+                -v "$REPO_ROOT:/workspace"
+                -w /workspace/mobile
+            )
+        fi
+
+        docker run "${DOCKER_RUN_OPTS[@]}" \
             "$DOCKER_IMG" \
             bash -c "flutter pub get && flutter build apk --release --build-name='$APP_VERSION' --build-number='$BUILD_NUMBER'"
         if [[ -f "$BUILD_OUTPUT" ]] && [[ $(stat -c%s "$BUILD_OUTPUT" 2>/dev/null || stat -f%z "$BUILD_OUTPUT" 2>/dev/null || echo 0) -gt 10485760 ]]; then
