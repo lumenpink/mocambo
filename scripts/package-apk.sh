@@ -34,24 +34,45 @@ echo "================================================================="
 echo "Mocambo — Empacotamento de APK e Distribuição Patilera"
 echo "================================================================="
 
-# 0. Obter versão canônica SemVer do CCCP
-APP_VERSION="0.2.0"
+# 0. Obter versão canônica SemVer do CCCP e derivar versionCode estritamente crescente
+APP_VERSION="0.3.0"
 if [[ -f "$REPO_ROOT/VERSION" ]]; then
     APP_VERSION="$(cat "$REPO_ROOT/VERSION" | tr -d '[:space:]')"
+elif grep -m1 '^version =' "$REPO_ROOT/Cargo.toml" >/dev/null 2>&1; then
+    APP_VERSION="$(grep -m1 '^version =' "$REPO_ROOT/Cargo.toml" | cut -d '"' -f2)"
 fi
-echo "-> Versão canônica CCCP: $APP_VERSION"
+
+BUILD_NUMBER=""
+if [[ "$APP_VERSION" =~ dev\.([0-9]+) ]]; then
+    BUILD_NUMBER="${BASH_REMATCH[1]}"
+fi
+if [[ -z "$BUILD_NUMBER" || "$BUILD_NUMBER" -eq 0 ]]; then
+    BUILD_NUMBER="$(git -C "$REPO_ROOT" rev-list --count HEAD 2>/dev/null || echo "1")"
+fi
+echo "-> Versão canônica CCCP: $APP_VERSION (versionCode / buildNumber: $BUILD_NUMBER)"
+
+# Sincronizar mobile/pubspec.yaml
+APP_VERSION_BASE="$(echo "$APP_VERSION" | cut -d'-' -f1 | cut -d'+' -f1)"
+if [[ -f "$MOBILE_DIR/pubspec.yaml" ]]; then
+    sed -i -E "s/^version: .*/version: ${APP_VERSION_BASE}+${BUILD_NUMBER}/" "$MOBILE_DIR/pubspec.yaml"
+    echo "-> mobile/pubspec.yaml sincronizado com versão ${APP_VERSION_BASE}+${BUILD_NUMBER}"
+fi
 
 # 1. Compilação Flutter APK (Local ou via container atômico gost-ci-flutter)
 IS_REAL_BUILD=false
 if command -v flutter >/dev/null 2>&1; then
     echo "-> Compilando APK Flutter (release) via toolchain local..."
-    (cd "$MOBILE_DIR" && flutter build apk --release)
-    if [[ -f "$BUILD_OUTPUT" ]]; then
+    (cd "$MOBILE_DIR" && flutter pub get && flutter build apk --release --build-name="$APP_VERSION" --build-number="$BUILD_NUMBER")
+    if [[ -f "$BUILD_OUTPUT" ]] && [[ $(stat -c%s "$BUILD_OUTPUT" 2>/dev/null || stat -f%z "$BUILD_OUTPUT" 2>/dev/null || echo 0) -gt 10485760 ]]; then
         cp "$BUILD_OUTPUT" "$FINAL_APK"
         IS_REAL_BUILD=true
     fi
-elif command -v docker >/dev/null 2>&1 && docker image inspect codeberg.org/lumenpink/gost-ci-flutter:latest >/dev/null 2>&1; then
-    echo "-> Compilando APK Flutter (release) hermeticamente via sub-imagem gost-ci-flutter..."
+elif command -v docker >/dev/null 2>&1 && (docker image inspect gambi.2lp.in/lumen/gost-ci-flutter:latest >/dev/null 2>&1 || docker image inspect codeberg.org/lumenpink/gost-ci-flutter:latest >/dev/null 2>&1); then
+    DOCKER_IMG="gambi.2lp.in/lumen/gost-ci-flutter:latest"
+    if ! docker image inspect "$DOCKER_IMG" >/dev/null 2>&1; then
+        DOCKER_IMG="codeberg.org/lumenpink/gost-ci-flutter:latest"
+    fi
+    echo "-> Compilando APK Flutter (release) hermeticamente via sub-imagem gost-ci-flutter ($DOCKER_IMG)..."
     GRADLE_CACHE_ARG=""
     if [ -d "$HOME/.gradle" ]; then
         GRADLE_CACHE_ARG="-v $HOME/.gradle:/root/.gradle"
@@ -69,9 +90,9 @@ elif command -v docker >/dev/null 2>&1 && docker image inspect codeberg.org/lume
         -v "$NDK_CACHE_DIR:/opt/android-sdk/ndk" \
         -v "$REPO_ROOT:/workspace" \
         -w /workspace/mobile \
-        codeberg.org/lumenpink/gost-ci-flutter:latest \
-        bash -c "flutter pub get && flutter build apk --release"
-    if [[ -f "$BUILD_OUTPUT" ]]; then
+        "$DOCKER_IMG" \
+        bash -c "flutter pub get && flutter build apk --release --build-name='$APP_VERSION' --build-number='$BUILD_NUMBER'"
+    if [[ -f "$BUILD_OUTPUT" ]] && [[ $(stat -c%s "$BUILD_OUTPUT" 2>/dev/null || stat -f%z "$BUILD_OUTPUT" 2>/dev/null || echo 0) -gt 10485760 ]]; then
         cp "$BUILD_OUTPUT" "$FINAL_APK"
         IS_REAL_BUILD=true
     fi
