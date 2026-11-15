@@ -120,6 +120,10 @@ fn test_apk_flutter_and_r2_contract() {
         script_content.contains("--volumes-from"),
         "package-apk.sh deve suportar --volumes-from para runners em ambiente DooD (Docker-out-of-Docker)"
     );
+    assert!(
+        script_content.contains("CURRENT_CONTAINER"),
+        "package-apk.sh deve inspecionar CURRENT_CONTAINER para propagação de volumes"
+    );
 }
 
 #[test]
