@@ -35,3 +35,10 @@ Para a Natasha entender por que usamos `--volumes-from`:
    - Caso contrário, aplicar os binds convencionais do ambiente host.
 2. **`tests/distribution_contract_test.rs`:**
    - Adicionar asserção garantindo que `scripts/package-apk.sh` implementa suporte explícito a `--volumes-from` para suporte a runners DooD.
+
+## 4. Validação e Conformidade
+
+- Contratos de empacotamento e distribuição validados via `cargo test --test distribution_contract_test` (7/7 testes aprovados).
+- Linters e verificações de higiene (`cargo fmt --check` e `cargo clippy --all-targets -- -D warnings`) aprovados com zero warnings.
+- Preservação da capacidade de compilação hermética com o sub-container `gost-ci-flutter` dentro do ambiente DooD do act_runner.
+
