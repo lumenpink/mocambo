@@ -172,7 +172,8 @@ fn test_ci_deploy_apk_job_contract() {
         "O disparo de webhook da Pratilera deve residir em job desacoplado 'trigger-pratilera'"
     );
     assert!(
-        workflow.contains("needs: [deploy-apk]") || workflow.contains("needs: [deploy-banca, deploy-apk]"),
+        workflow.contains("needs: [deploy-apk]")
+            || workflow.contains("needs: [deploy-banca, deploy-apk]"),
         "trigger-pratilera deve aguardar a conclusão com sucesso do deploy-apk"
     );
 }
@@ -197,4 +198,3 @@ fn test_flutter_canonical_version_injection() {
         "package-apk.sh deve sincronizar a versão canônica no mobile/pubspec.yaml"
     );
 }
-
