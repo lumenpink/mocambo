@@ -143,3 +143,58 @@ fn test_banca_dispatch_contract() {
         ".forgejo/workflows/ci.yml deve propagar secrets.GIT_2LP_TOKEN"
     );
 }
+
+#[test]
+fn test_ci_deploy_apk_job_contract() {
+    let workflow_path = Path::new(".forgejo/workflows/ci.yml");
+    assert!(workflow_path.exists());
+    let workflow = std::fs::read_to_string(workflow_path).expect("Falha ao ler ci.yml");
+
+    // Requisito 1: Job dedicado deploy-apk com container soberano gost-ci-flutter
+    assert!(
+        workflow.contains("deploy-apk:"),
+        ".forgejo/workflows/ci.yml deve declarar o job dedicado 'deploy-apk'"
+    );
+    assert!(
+        workflow.contains("image: gambi.2lp.in/lumen/gost-ci-flutter:latest"),
+        "O job deploy-apk deve executar hermeticamente no container gost-ci-flutter"
+    );
+
+    // Requisito 2: Upload resiliente no Cloudflare R2 com validação de integridade
+    assert!(
+        workflow.contains("twolp-bucket/mocambo.apk"),
+        "deploy-apk deve orquestrar upload para twolp-bucket/mocambo.apk"
+    );
+
+    // Requisito 3: Encadeamento de notificação dependente de deploy-apk
+    assert!(
+        workflow.contains("trigger-pratilera:"),
+        "O disparo de webhook da Pratilera deve residir em job desacoplado 'trigger-pratilera'"
+    );
+    assert!(
+        workflow.contains("needs: [deploy-apk]") || workflow.contains("needs: [deploy-banca, deploy-apk]"),
+        "trigger-pratilera deve aguardar a conclusão com sucesso do deploy-apk"
+    );
+}
+
+#[test]
+fn test_flutter_canonical_version_injection() {
+    let script_path = Path::new("scripts/package-apk.sh");
+    assert!(script_path.exists());
+    let script = std::fs::read_to_string(script_path).expect("Falha ao ler package-apk.sh");
+
+    // Requisito: Injeção de --build-name e --build-number e sincronização pubspec
+    assert!(
+        script.contains("--build-name="),
+        "package-apk.sh deve injetar --build-name no flutter build apk"
+    );
+    assert!(
+        script.contains("--build-number="),
+        "package-apk.sh deve injetar --build-number no flutter build apk"
+    );
+    assert!(
+        script.contains("pubspec.yaml"),
+        "package-apk.sh deve sincronizar a versão canônica no mobile/pubspec.yaml"
+    );
+}
+
