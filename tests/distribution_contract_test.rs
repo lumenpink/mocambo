@@ -150,14 +150,25 @@ fn test_ci_deploy_apk_job_contract() {
     assert!(workflow_path.exists());
     let workflow = std::fs::read_to_string(workflow_path).expect("Falha ao ler ci.yml");
 
-    // Requisito 1: Job dedicado deploy-apk com container soberano gost-ci-flutter
+    // Requisito 1: Job dedicado deploy-apk executando no runner host para preservar Node.js
     assert!(
         workflow.contains("deploy-apk:"),
         ".forgejo/workflows/ci.yml deve declarar o job dedicado 'deploy-apk'"
     );
+    let deploy_apk_block = workflow
+        .split("deploy-apk:")
+        .nth(1)
+        .expect("deploy-apk ausente")
+        .split("trigger-pratilera:")
+        .next()
+        .expect("trigger-pratilera ausente");
     assert!(
-        workflow.contains("image: gambi.2lp.in/lumen/gost-ci-flutter:latest"),
-        "O job deploy-apk deve executar hermeticamente no container gost-ci-flutter"
+        !deploy_apk_block.contains("container:"),
+        "O job deploy-apk não deve declarar container no job level para não quebrar Node.js no runner act"
+    );
+    assert!(
+        deploy_apk_block.contains("docker pull gambi.2lp.in/lumen/gost-ci-flutter:latest"),
+        "deploy-apk deve realizar pull explícito da imagem gost-ci-flutter para execução via Docker host"
     );
 
     // Requisito 2: Upload resiliente no Cloudflare R2 com validação de integridade
