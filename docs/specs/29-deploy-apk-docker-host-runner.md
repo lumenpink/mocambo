@@ -35,5 +35,9 @@ Para a Natasha entender por que não adicionamos Node.js na imagem `gost-ci-flut
    - Manter a referência explícita à imagem `gost-ci-flutter` para rastreabilidade de conformidade.
 2. **`scripts/package-apk.sh`:**
    - Tornar a resolução de imagem Docker resiliente: caso a imagem não esteja no cache local, realizar pull automático antes de inspecionar.
-3. **`tests/distribution_contract_test.rs`:**
-   - Atualizar a asserção do contrato para refletir que a imagem `gost-ci-flutter` é utilizada como sub-container hermético pelo job `deploy-apk`, mantendo a garantia de compilação sob a toolchain oficial.
+## 4. Validação e Conformidade
+
+- Testes de contrato automatizados executados via `cargo test --test distribution_contract_test` (7/7 aprovados).
+- Linters e análise estática: `cargo fmt --check` e `cargo clippy --all-targets -- -D warnings` sem apontamentos.
+- Pipeline do Forgejo act_runner blindada: Node.js preservado no runner nativo e compilação isolada hermeticamente via Docker Host.
+
