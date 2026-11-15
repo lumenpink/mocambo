@@ -116,6 +116,10 @@ fn test_apk_flutter_and_r2_contract() {
         script_content.contains("Pulando upload para o bucket R2"),
         "package-apk.sh deve blindar upload para R2 contra stubs de contingencia"
     );
+    assert!(
+        script_content.contains("--volumes-from"),
+        "package-apk.sh deve suportar --volumes-from para runners em ambiente DooD (Docker-out-of-Docker)"
+    );
 }
 
 #[test]
