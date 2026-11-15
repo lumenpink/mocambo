@@ -21,6 +21,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **build:** otimizar tamanho de binario com profile.release e habilitar linking estatico musl crt-static (closes #13)
 
 ### Bug Fixes
+- **ci:** executar deploy-apk via docker host no runner act (closes #29)
 - **mobile:** padronizar identidade visual para Mocambo em todas as plataformas (closes #19)
 - **dist:** assinar apk soberanamente com in.twolp e injetar versao canonica (closes #10)
 
