@@ -197,4 +197,9 @@ fn test_flutter_canonical_version_injection() {
         script.contains("pubspec.yaml"),
         "package-apk.sh deve sincronizar a versão canônica no mobile/pubspec.yaml"
     );
+    // Mutação: garantir proteção estrita de tamanho mínimo (10MB = 10485760 bytes)
+    assert!(
+        script.contains("10485760"),
+        "package-apk.sh deve validar limite estrito de 10MB para classificar IS_REAL_BUILD"
+    );
 }
