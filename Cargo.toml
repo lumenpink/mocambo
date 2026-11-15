@@ -1,6 +1,6 @@
 [package]
 name = "mocambo"
-version = "0.3.0-dev.55+20261115.7b5299b"
+version = "0.3.0-dev.56+20261115.df3baf2"
 edition = "2021"
 authors = ["Lumen Pink <hi@lumen.pink>"]
 description = "Sovereign personal cloud storage, WebDAV engine, and smart offload"

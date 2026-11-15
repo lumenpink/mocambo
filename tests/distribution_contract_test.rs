@@ -176,6 +176,10 @@ fn test_ci_deploy_apk_job_contract() {
         workflow.contains("twolp-bucket/mocambo.apk"),
         "deploy-apk deve orquestrar upload para twolp-bucket/mocambo.apk"
     );
+    assert!(
+        deploy_apk_block.contains("10485760"),
+        "deploy-apk deve validar o tamanho mínimo de 10MB do APK antes do upload"
+    );
 
     // Requisito 3: Encadeamento de notificação dependente de deploy-apk
     assert!(
