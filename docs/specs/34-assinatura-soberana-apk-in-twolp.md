@@ -38,3 +38,10 @@ Em `tests/distribution_contract_test.rs`:
 4. **Fase 7 (Mutation Test):** Validar comportamento com propriedades ausentes.
 5. **Fase 8 (Quality Gate):** Validar `cargo fmt --check`, `cargo clippy --all-targets -- -D warnings` e `cargo test --test distribution_contract_test`.
 6. **Fase 9 (Finish & Close):** Finalização com `cccp close`.
+
+## 5. Validação e Encerramento
+
+- **Testes de Contrato:** 10/10 testes aprovados em `tests/distribution_contract_test.rs`.
+- **Quality Gates:** `cargo fmt --check` e `cargo clippy --all-targets -- -D warnings` sem pendências.
+- **Assinatura Soberana:** Configurado `signingConfigs.release` e gate estrito de certificado `CN=in.twolp`.
+
