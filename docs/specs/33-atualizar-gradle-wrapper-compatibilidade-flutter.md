@@ -41,3 +41,10 @@ Em `tests/distribution_contract_test.rs`:
 4. **Fase 7 (Mutation Test):** Testar script com flags inexistentes e caminhos inválidos.
 5. **Fase 8 (Quality Gate):** Validar `cargo fmt --check`, `cargo clippy --all-targets -- -D warnings` e `cargo test --test distribution_contract_test`.
 6. **Fase 9 (Finish & Close):** Finalização com `cccp close`.
+
+## 5. Validação e Encerramento
+
+- **Testes de Contrato:** 8/8 testes aprovados em `tests/distribution_contract_test.rs`.
+- **Quality Gates:** `cargo fmt --check` e `cargo clippy --all-targets -- -D warnings` sem pendências.
+- **Gradle 9.3.1:** Wrapper atualizado para `gradle-9.3.1-all.zip` e flag `--android-skip-build-dependency-validation` ativa.
+
