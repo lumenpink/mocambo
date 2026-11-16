@@ -62,7 +62,7 @@ fi
 IS_REAL_BUILD=false
 if command -v flutter >/dev/null 2>&1; then
     echo "-> Compilando APK Flutter (release) via toolchain local..."
-    (cd "$MOBILE_DIR" && flutter pub get && flutter build apk --release --build-name="$APP_VERSION" --build-number="$BUILD_NUMBER")
+    (cd "$MOBILE_DIR" && flutter pub get && flutter build apk --release --build-name="$APP_VERSION" --build-number="$BUILD_NUMBER" --android-skip-build-dependency-validation)
     if [[ -f "$BUILD_OUTPUT" ]] && [[ $(stat -c%s "$BUILD_OUTPUT" 2>/dev/null || stat -f%z "$BUILD_OUTPUT" 2>/dev/null || echo 0) -gt 10485760 ]]; then
         cp "$BUILD_OUTPUT" "$FINAL_APK"
         IS_REAL_BUILD=true
@@ -142,7 +142,7 @@ elif command -v docker >/dev/null 2>&1; then
 
         docker run "${DOCKER_RUN_OPTS[@]}" \
             "$DOCKER_IMG" \
-            bash -c "flutter pub get && flutter build apk --release --build-name='$APP_VERSION' --build-number='$BUILD_NUMBER'"
+            bash -c "flutter pub get && flutter build apk --release --build-name='$APP_VERSION' --build-number='$BUILD_NUMBER' --android-skip-build-dependency-validation"
         if [[ -f "$BUILD_OUTPUT" ]] && [[ $(stat -c%s "$BUILD_OUTPUT" 2>/dev/null || stat -f%z "$BUILD_OUTPUT" 2>/dev/null || echo 0) -gt 10485760 ]]; then
             cp "$BUILD_OUTPUT" "$FINAL_APK"
             IS_REAL_BUILD=true

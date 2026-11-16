@@ -132,6 +132,22 @@ fn test_apk_flutter_and_r2_contract() {
         script_content.contains("/containers/"),
         "package-apk.sh deve extrair ID canônico de container a partir de /containers/<CID>"
     );
+    assert!(
+        script_content.contains("--android-skip-build-dependency-validation"),
+        "package-apk.sh deve passar --android-skip-build-dependency-validation ao flutter build apk"
+    );
+}
+
+#[test]
+fn test_gradle_wrapper_compatibility() {
+    let wrapper_props_path = Path::new("mobile/android/gradle/wrapper/gradle-wrapper.properties");
+    assert!(wrapper_props_path.exists());
+    let content = std::fs::read_to_string(wrapper_props_path)
+        .expect("Falha ao ler gradle-wrapper.properties");
+    assert!(
+        content.contains("gradle-9.3.1"),
+        "gradle-wrapper.properties deve apontar para Gradle 9.3.1 compatível com Flutter 3.50.0"
+    );
 }
 
 #[test]
