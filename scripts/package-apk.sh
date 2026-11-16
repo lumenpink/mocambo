@@ -131,6 +131,9 @@ elif command -v docker >/dev/null 2>&1; then
             NDK_CACHE_DIR="${NDK_CACHE_DIR:-$HOME/.cache/android-sdk-ndk}"
             mkdir -p "$NDK_CACHE_DIR"
 
+            if [ -d "$HOME/.android" ]; then
+                DOCKER_RUN_OPTS+=(-v "$HOME/.android:/root/.android:ro")
+            fi
             [ -n "$GRADLE_CACHE_ARG" ] && DOCKER_RUN_OPTS+=($GRADLE_CACHE_ARG)
             DOCKER_RUN_OPTS+=(
                 -v "$PUB_CACHE_DIR:/root/.pub-cache"
@@ -229,11 +232,39 @@ fi
 
 # 2. Assinatura do APK com chave oficial in.twolp
 KEYSTORE_PATH="${MOCAMBO_KEYSTORE_PATH:-$HOME/.android/in_twolp_release.keystore}"
-if [[ -f "$KEYSTORE_PATH" && -f "$SCRIPT_DIR/sign-release.sh" && $(command -v apksigner) ]]; then
-    echo "-> Assinando APK com in_twolp_release.keystore..."
-    "$SCRIPT_DIR/sign-release.sh" "$FINAL_APK"
+if [[ -f "$KEYSTORE_PATH" && -f "$SCRIPT_DIR/sign-release.sh" ]]; then
+    if command -v apksigner >/dev/null 2>&1; then
+        echo "-> Assinando APK localmente com in_twolp_release.keystore..."
+        "$SCRIPT_DIR/sign-release.sh" "$FINAL_APK"
+    elif command -v docker >/dev/null 2>&1 && docker image inspect "$DOCKER_IMG" >/dev/null 2>&1; then
+        echo "-> Assinando APK hermeticamente via gost-ci-flutter..."
+        docker run "${DOCKER_RUN_OPTS[@]}" \
+            -v "$HOME/.android:/root/.android:ro" \
+            -v "$SCRIPT_DIR:/scripts" \
+            "$DOCKER_IMG" \
+            bash -c "PATH=\"/opt/android-sdk/build-tools/34.0.0:\$PATH\" /scripts/sign-release.sh '$FINAL_APK'" || true
+    fi
 else
-    echo "Aviso: Keystore ou apksigner indisponíveis; mantendo assinatura existente."
+    echo "Aviso: Keystore ou sign-release.sh indisponíveis; mantendo assinatura existente."
+fi
+
+# 2.1 Gate estrito de integridade da assinatura
+if [[ -f "$KEYSTORE_PATH" ]]; then
+    echo "-> Validando certificado soberano do APK..."
+    CERT_OUTPUT=""
+    if command -v apksigner >/dev/null 2>&1; then
+        CERT_OUTPUT="$(apksigner verify --print-certs "$FINAL_APK" 2>/dev/null || true)"
+    elif command -v docker >/dev/null 2>&1 && docker image inspect "$DOCKER_IMG" >/dev/null 2>&1; then
+        CERT_OUTPUT="$(docker run "${DOCKER_RUN_OPTS[@]}" "$DOCKER_IMG" /opt/android-sdk/build-tools/34.0.0/apksigner verify --print-certs "$FINAL_APK" 2>/dev/null || true)"
+    fi
+
+    if [[ "$CERT_OUTPUT" =~ "CN=in.twolp" ]]; then
+        echo "✅ Certificado soberano confirmado (CN=in.twolp)."
+    else
+        echo "❌ ERRO CRÍTICO: APK não está assinado com a chave soberana in.twolp!"
+        echo "$CERT_OUTPUT"
+        exit 1
+    fi
 fi
 
 # 3. Sincronização com a Pratilera (se solicitado)

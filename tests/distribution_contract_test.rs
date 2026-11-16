@@ -151,6 +151,34 @@ fn test_gradle_wrapper_compatibility() {
 }
 
 #[test]
+fn test_android_release_signing_config() {
+    let build_gradle_path = Path::new("mobile/android/app/build.gradle.kts");
+    assert!(build_gradle_path.exists());
+    let content =
+        std::fs::read_to_string(build_gradle_path).expect("Falha ao ler build.gradle.kts");
+    assert!(
+        content.contains("in_twolp_release.keystore"),
+        "build.gradle.kts deve referenciar in_twolp_release.keystore no signingConfigs"
+    );
+    assert!(
+        content.contains("signingConfigs.getByName(\"release\")")
+            || content.contains("signingConfig = signingConfigs[\"release\"]"),
+        "build.gradle.kts deve associar signingConfig de release no buildTypes.release"
+    );
+}
+
+#[test]
+fn test_package_apk_validates_sovereign_signature() {
+    let script_path = Path::new("scripts/package-apk.sh");
+    assert!(script_path.exists());
+    let script_content = std::fs::read_to_string(script_path).expect("Falha ao ler package-apk.sh");
+    assert!(
+        script_content.contains("CN=in.twolp"),
+        "package-apk.sh deve validar a assinatura soberana CN=in.twolp antes de prosseguir"
+    );
+}
+
+#[test]
 fn test_banca_dispatch_contract() {
     let script_path = Path::new("scripts/package-apk.sh");
     assert!(script_path.exists());
