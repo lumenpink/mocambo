@@ -131,8 +131,20 @@ async fn check_file_get(
 
 async fn dedup_file_handler(
     State(state): State<AppState>,
+    headers: HeaderMap,
     Json(payload): Json<DedupFilePayload>,
 ) -> impl IntoResponse {
+    let user_id = headers
+        .get("remote-user")
+        .or_else(|| headers.get("x-forwarded-user"))
+        .and_then(|v| v.to_str().ok())
+        .unwrap_or("default")
+        .trim();
+    let user_id = if user_id.is_empty() {
+        "default"
+    } else {
+        user_id
+    };
     let existing = match state.db.get_file_by_hash(&payload.sha256) {
         Ok(Some(rec)) => rec,
         Ok(None) => {
@@ -197,7 +209,7 @@ async fn dedup_file_handler(
     }
 
     if let Err(e) = state.db.record_file_with_metadata(
-        "default",
+        user_id,
         &payload.storage_path,
         &payload.file_name,
         existing.file_size,

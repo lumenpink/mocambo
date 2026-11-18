@@ -17,7 +17,14 @@ use std::pin::Pin;
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
-pub type PendingMetadataMap = Arc<Mutex<HashMap<String, (String, Option<String>)>>>;
+#[derive(Debug, Clone)]
+pub struct PendingFileMetadata {
+    pub user_id: String,
+    pub source: Option<String>,
+    pub original_path: Option<String>,
+}
+
+pub type PendingMetadataMap = Arc<Mutex<HashMap<String, PendingFileMetadata>>>;
 
 #[derive(Clone)]
 pub struct InterceptingFs {
@@ -67,16 +74,22 @@ impl InterceptingFs {
     pub fn register_pending_metadata(
         &self,
         path: &str,
-        source: String,
+        user_id: String,
+        source: Option<String>,
         original_path: Option<String>,
     ) {
         let clean = path
             .trim_start_matches('/')
             .trim_start_matches("dav/")
             .trim_start_matches('/');
+        let meta = PendingFileMetadata {
+            user_id,
+            source,
+            original_path,
+        };
         let mut map = self.metadata_map.lock().unwrap();
-        map.insert(clean.to_string(), (source.clone(), original_path.clone()));
-        map.insert(path.to_string(), (source, original_path));
+        map.insert(clean.to_string(), meta.clone());
+        map.insert(path.to_string(), meta);
     }
 }
 
@@ -305,17 +318,17 @@ impl DavFile for InterceptingFile {
                     }
 
                     // Obter metadados da rota ou inferir da URL/pasta
-                    let (source, original_path) = {
+                    let (user_id, source, original_path) = {
                         let mut map = self.metadata_map.lock().unwrap();
                         let clean = self
                             .dav_path_str
                             .trim_start_matches('/')
                             .trim_start_matches("dav/")
                             .trim_start_matches('/');
-                        if let Some((s, op)) =
+                        if let Some(meta) =
                             map.remove(clean).or_else(|| map.remove(&self.dav_path_str))
                         {
-                            (Some(s), op)
+                            (meta.user_id, meta.source, meta.original_path)
                         } else {
                             let path_lower = self.dav_path_str.to_lowercase();
                             let s = if path_lower.contains("/whatsapp") {
@@ -332,12 +345,12 @@ impl DavFile for InterceptingFile {
                             } else {
                                 None
                             };
-                            (s, None)
+                            (self.user_id.clone(), s, None)
                         }
                     };
 
                     let _ = self.db.record_file_with_metadata(
-                        &self.user_id,
+                        &user_id,
                         &self.dav_path_str,
                         &file_name,
                         total_size,

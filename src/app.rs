@@ -55,18 +55,32 @@ pub async fn create_app(
         async move {
             if req.method() == http::Method::PUT {
                 let path = req.uri().path().to_string();
-                if let Some(source) = req
+                let user_id = req
+                    .headers()
+                    .get("remote-user")
+                    .or_else(|| req.headers().get("x-forwarded-user"))
+                    .and_then(|v| v.to_str().ok())
+                    .unwrap_or("default")
+                    .trim()
+                    .to_string();
+
+                let user_id = if user_id.is_empty() {
+                    "default".to_string()
+                } else {
+                    user_id
+                };
+
+                let source = req
                     .headers()
                     .get("x-mocambo-source")
                     .and_then(|v| v.to_str().ok())
-                {
-                    let original_path = req
-                        .headers()
-                        .get("x-mocambo-original-path")
-                        .and_then(|v| v.to_str().ok())
-                        .map(|s| s.to_string());
-                    fs.register_pending_metadata(&path, source.to_string(), original_path);
-                }
+                    .map(|s| s.to_string());
+                let original_path = req
+                    .headers()
+                    .get("x-mocambo-original-path")
+                    .and_then(|v| v.to_str().ok())
+                    .map(|s| s.to_string());
+                fs.register_pending_metadata(&path, user_id, source, original_path);
             }
             let res = handler.handle(req).await;
             res.map(Body::new)
