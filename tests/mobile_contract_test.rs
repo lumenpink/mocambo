@@ -400,3 +400,29 @@ fn test_mobile_runtime_permissions_and_gallery_scan_contract() {
         "main.dart deve solicitar permissoes antes de escanear a galeria"
     );
 }
+
+#[test]
+fn test_mobile_onboarding_and_sync_status_contract() {
+    let gallery_path = Path::new("mobile/lib/views/gallery_page.dart");
+    assert!(gallery_path.exists());
+    let gallery_code = fs::read_to_string(gallery_path).unwrap();
+    assert!(
+        gallery_code.contains("Configurar Servidor"),
+        "gallery_page.dart deve conter acao/banner de onboarding 'Configurar Servidor'"
+    );
+    assert!(
+        gallery_code.contains("onOpenSettings"),
+        "gallery_page.dart deve aceitar callback onOpenSettings"
+    );
+
+    let main_path = Path::new("mobile/lib/main.dart");
+    let main_code = fs::read_to_string(main_path).unwrap();
+    assert!(
+        main_code.contains("onOpenSettings"),
+        "main.dart deve fornecer onOpenSettings para alternar para tela de ajustes"
+    );
+    assert!(
+        main_code.contains("_isSyncing"),
+        "main.dart deve rastrear estado de sincronizacao com _isSyncing"
+    );
+}
