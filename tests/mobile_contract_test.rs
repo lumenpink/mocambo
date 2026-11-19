@@ -362,3 +362,41 @@ fn test_mobile_config_persistence_and_basic_auth_contract() {
         "settings_page.dart deve sugerir https://mocambo.lohn.in"
     );
 }
+
+#[test]
+fn test_mobile_runtime_permissions_and_gallery_scan_contract() {
+    let main_activity_path =
+        Path::new("mobile/android/app/src/main/kotlin/in/twolp/mocambo/MainActivity.kt");
+    assert!(main_activity_path.exists());
+    let main_activity_code = fs::read_to_string(main_activity_path).unwrap();
+    assert!(
+        main_activity_code.contains("in.twolp.mocambo/permissions"),
+        "MainActivity.kt deve registrar o MethodChannel in.twolp.mocambo/permissions"
+    );
+    assert!(
+        main_activity_code.contains("requestStoragePermissions"),
+        "MainActivity.kt deve tratar o metodo requestStoragePermissions"
+    );
+
+    let permission_service_path = Path::new("mobile/lib/services/permission_service.dart");
+    assert!(
+        permission_service_path.exists(),
+        "permission_service.dart deve existir em mobile/lib/services/"
+    );
+    let perm_code = fs::read_to_string(permission_service_path).unwrap();
+    assert!(
+        perm_code.contains("requestStoragePermissions"),
+        "permission_service.dart deve conter requestStoragePermissions()"
+    );
+
+    let main_path = Path::new("mobile/lib/main.dart");
+    let main_code = fs::read_to_string(main_path).unwrap();
+    assert!(
+        main_code.contains("/storage/emulated/0/DCIM"),
+        "main.dart deve listar caminho canonico /storage/emulated/0/DCIM"
+    );
+    assert!(
+        main_code.contains("requestStoragePermissions"),
+        "main.dart deve solicitar permissoes antes de escanear a galeria"
+    );
+}
