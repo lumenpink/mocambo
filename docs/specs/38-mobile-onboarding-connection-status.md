@@ -1,7 +1,7 @@
 # Especificação Técnica — Ticket #38: Onboarding de Conexão e Status Visual de Sincronização
 
 - **Ticket**: [#38](https://gambi.2lp.in/lumen/mocambo/issues/38)
-- **Status**: Fase 3 - Especificação
+- **Status**: Concluído (Fase 9)
 - **Data**: 2026-11-19
 - **Autor**: Lumen Pink & Antigravity
 
@@ -49,9 +49,9 @@ Em `mobile/lib/views/gallery_page.dart`:
 
 ## 3. Critérios de Aceite DD-TDD
 
-- [ ] **Red Test:** Teste em `tests/mobile_contract_test.rs` validando que:
+- [x] **Red Test:** Teste em `tests/mobile_contract_test.rs` validando que:
   - `gallery_page.dart` aceita `config`, `isSyncing` e `onOpenSettings`.
   - `gallery_page.dart` contém o banner de onboarding "Configurar Servidor".
   - `main.dart` repassa o estado de sincronização e navegação de onboarding para a `GalleryPage`.
-- [ ] **Green Implementation:** Implementar em `mobile/lib/views/gallery_page.dart` e `mobile/lib/main.dart`.
-- [ ] **Quality Gate:** Suite de testes em Rust aprovada, `cargo fmt` e `cargo clippy` sem warnings.
+- [x] **Green Implementation:** Implementar em `mobile/lib/views/gallery_page.dart` e `mobile/lib/main.dart`.
+- [x] **Quality Gate:** Suite de testes em Rust aprovada, `cargo fmt` e `cargo clippy` sem warnings.
