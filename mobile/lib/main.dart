@@ -32,6 +32,8 @@ class _MocamboAppState extends State<MocamboApp> {
   final MediaScanner _mediaScanner = const MediaScanner();
   final List<MediaItem> _items = [];
   int _currentIndex = 0;
+  bool _isSyncing = false;
+  String? _syncProgressMessage;
 
   @override
   void initState() {
@@ -129,34 +131,69 @@ class _MocamboAppState extends State<MocamboApp> {
       return;
     }
 
-    final healthy = await _apiClient.handshake();
-    if (!healthy) {
+    setState(() {
+      _isSyncing = true;
+      _syncProgressMessage =
+          'Verificando conexão com ${_config.cleanBaseUrl}...';
+    });
+
+    try {
+      final healthy = await _apiClient.handshake();
+      if (!healthy) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Falha de handshake: servidor inalcançável em ${_config.cleanBaseUrl}.',
+            ),
+            backgroundColor: Colors.red,
+          ),
+        );
+        return;
+      }
+
+      setState(() {
+        _syncProgressMessage = 'Sincronizando fotos e vídeos...';
+      });
+
+      final syncResult = await _webDavSync.syncPendingMedia(
+        _items,
+        onProgress: (current, total) {
+          if (mounted) {
+            setState(() {
+              _syncProgressMessage = 'Enviando item $current de $total...';
+            });
+          }
+        },
+      );
+      final offloadResult = await _offloadManager.processOffload(_items);
+
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            'Falha de handshake: servidor inalcançável em ${_config.cleanBaseUrl}.',
+            'Sincronizado: ${syncResult.successfulUploads} enviados (${syncResult.failedUploads} erros). '
+            'Offload: ${offloadResult.offloadedCount} liberados.',
           ),
+          backgroundColor: Colors.green,
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Erro durante sincronização: $e'),
           backgroundColor: Colors.red,
         ),
       );
-      return;
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isSyncing = false;
+          _syncProgressMessage = null;
+        });
+      }
     }
-
-    final syncResult = await _webDavSync.syncPendingMedia(_items);
-    final offloadResult = await _offloadManager.processOffload(_items);
-
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          'Sincronizado: ${syncResult.successfulUploads} enviados (${syncResult.failedUploads} erros). '
-          'Offload: ${offloadResult.offloadedCount} liberados.',
-        ),
-        backgroundColor: Colors.green,
-      ),
-    );
-    setState(() {});
   }
 
   @override
@@ -184,9 +221,13 @@ class _MocamboAppState extends State<MocamboApp> {
     final pages = [
       GalleryPage(
         items: _items,
+        config: _config,
+        isSyncing: _isSyncing,
+        syncProgressMessage: _syncProgressMessage,
         onTriggerOffload: _handleOffload,
         onTriggerSync: _handleSyncWithServer,
         onRefresh: _handleScanMedia,
+        onOpenSettings: () => setState(() => _currentIndex = 2),
       ),
       SearchPage(apiClient: _apiClient),
       SettingsPage(

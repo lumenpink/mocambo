@@ -1,19 +1,28 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
+import '../config/app_config.dart';
 import '../models/media_item.dart';
 
 class GalleryPage extends StatefulWidget {
   final List<MediaItem> items;
+  final AppConfig config;
+  final bool isSyncing;
+  final String? syncProgressMessage;
   final VoidCallback onTriggerOffload;
   final VoidCallback? onTriggerSync;
   final VoidCallback? onRefresh;
+  final VoidCallback? onOpenSettings;
 
   const GalleryPage({
     super.key,
     required this.items,
+    this.config = const AppConfig(),
+    this.isSyncing = false,
+    this.syncProgressMessage,
     required this.onTriggerOffload,
     this.onTriggerSync,
     this.onRefresh,
+    this.onOpenSettings,
   });
 
   @override
@@ -68,6 +77,90 @@ class _GalleryPageState extends State<GalleryPage> {
       ),
       body: Column(
         children: [
+          if (!widget.config.isConfigured)
+            Container(
+              margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: Theme.of(context)
+                    .colorScheme
+                    .primaryContainer
+                    .withOpacity(0.4),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: Theme.of(context)
+                      .colorScheme
+                      .primary
+                      .withOpacity(0.3),
+                ),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Icon(
+                        Icons.cloud_off_outlined,
+                        color: Theme.of(context).colorScheme.primary,
+                        size: 24,
+                      ),
+                      const SizedBox(width: 8),
+                      const Expanded(
+                        child: Text(
+                          'Mocambo Vault não configurado',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 14,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 6),
+                  const Text(
+                    'Conecte-se ao seu servidor soberano (ex.: mocambo.lohn.in) para sincronização automática da galeria e integração com o Zotero.',
+                    style: TextStyle(fontSize: 12),
+                  ),
+                  const SizedBox(height: 10),
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: ElevatedButton.icon(
+                      onPressed: widget.onOpenSettings,
+                      icon: const Icon(Icons.settings, size: 16),
+                      label: const Text('Configurar Servidor'),
+                    ),
+                  ),
+                ],
+              ),
+            )
+          else if (widget.isSyncing)
+            Container(
+              margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              decoration: BoxDecoration(
+                color: Colors.blue.shade50,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.blue.shade200),
+              ),
+              child: Row(
+                children: [
+                  const SizedBox(
+                    width: 16,
+                    height: 16,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      widget.syncProgressMessage ??
+                          'Sincronizando com o servidor...',
+                      style:
+                          TextStyle(fontSize: 12, color: Colors.blue.shade900),
+                    ),
+                  ),
+                ],
+              ),
+            ),
           SingleChildScrollView(
             scrollDirection: Axis.horizontal,
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
