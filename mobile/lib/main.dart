@@ -5,6 +5,7 @@ import 'models/media_item.dart';
 import 'services/api_client.dart';
 import 'services/media_scanner.dart';
 import 'services/offload_manager.dart';
+import 'services/permission_service.dart';
 import 'services/webdav_sync.dart';
 import 'views/gallery_page.dart';
 import 'views/search_page.dart';
@@ -51,6 +52,7 @@ class _MocamboAppState extends State<MocamboApp> {
         _initServices();
       });
     }
+    await _handleScanMedia();
   }
 
   void _initServices() {
@@ -70,25 +72,47 @@ class _MocamboAppState extends State<MocamboApp> {
   }
 
   Future<void> _handleScanMedia() async {
+    // 1. Solicita permissão em runtime (no Android)
+    await PermissionService.requestStoragePermissions();
+
     final home = Platform.environment['HOME'] ?? '';
     final candidates = [
+      '/storage/emulated/0/DCIM/Camera',
+      '/storage/emulated/0/DCIM',
+      '/storage/emulated/0/Pictures',
+      '/storage/emulated/0/Download',
       '/sdcard/DCIM/Camera',
       '/sdcard/Pictures',
+      '/sdcard/Download',
       if (home.isNotEmpty) '$home/Pictures',
       './test_media',
     ];
+
+    final allScanned = <MediaItem>[];
     for (final dir in candidates) {
-      if (Directory(dir).existsSync()) {
-        final scanned = await _mediaScanner.scanDirectory(dir);
-        if (scanned.isNotEmpty) {
-          setState(() {
-            _items.removeWhere((i) => scanned.any((s) => s.id == i.id));
-            _items.insertAll(0, scanned);
-          });
-          break;
+      try {
+        final d = Directory(dir);
+        if (d.existsSync()) {
+          final scanned = await _mediaScanner.scanDirectory(dir);
+          allScanned.addAll(scanned);
         }
+      } catch (_) {
+        // Ignora diretórios inacessíveis silenciosamente
       }
     }
+
+    if (!mounted) return;
+    setState(() {
+      for (final item in allScanned) {
+        final idx = _items.indexWhere((i) => i.id == item.id);
+        if (idx >= 0) {
+          _items[idx] = item;
+        } else {
+          _items.add(item);
+        }
+      }
+      _items.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+    });
   }
 
   Future<void> _handleSyncWithServer() async {
