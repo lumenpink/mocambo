@@ -36,6 +36,37 @@ class AppConfig {
         password: json['password'] as String? ?? '',
         retentionDays: json['retentionDays'] as int? ?? 15,
       );
+
+  static Future<String> defaultConfigFile() async {
+    // 1. Diretórios de dados internos do aplicativo no Android
+    for (final base in [
+      '/data/user/0/in.twolp.mocambo/app_flutter',
+      '/data/user/0/in.twolp.mocambo/files',
+      '/data/data/in.twolp.mocambo/app_flutter',
+      '/data/data/in.twolp.mocambo/files',
+    ]) {
+      final dir = Directory(base);
+      if (dir.existsSync()) {
+        return '$base/config.json';
+      }
+    }
+
+    // 2. Desktop / Linux HOME
+    final home =
+        Platform.environment['HOME'] ?? Platform.environment['USERPROFILE'];
+    if (home != null && home.isNotEmpty) {
+      final configDir = Directory('$home/.config/mocambo');
+      try {
+        if (!configDir.existsSync()) {
+          configDir.createSync(recursive: true);
+        }
+        return '$home/.config/mocambo/config.json';
+      } catch (_) {}
+    }
+
+    // 3. Fallback de diretório de trabalho atual
+    return 'config.json';
+  }
 }
 
 class ConfigStore {

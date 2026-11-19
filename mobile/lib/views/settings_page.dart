@@ -150,7 +150,7 @@ class _SettingsPageState extends State<SettingsPage> {
                 controller: _serverController,
                 decoration: const InputDecoration(
                   labelText: 'URL do Servidor',
-                  hintText: 'https://mocambo-server.2lp.in',
+                  hintText: 'https://mocambo.lohn.in',
                   prefixIcon: Icon(Icons.cloud_outlined),
                   border: OutlineInputBorder(),
                 ),

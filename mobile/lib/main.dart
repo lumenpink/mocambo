@@ -24,6 +24,7 @@ class MocamboApp extends StatefulWidget {
 
 class _MocamboAppState extends State<MocamboApp> {
   AppConfig _config = const AppConfig();
+  ConfigStore? _configStore;
   late ApiClient _apiClient;
   late WebDavSyncService _webDavSync;
   late OffloadManager _offloadManager;
@@ -35,6 +36,21 @@ class _MocamboAppState extends State<MocamboApp> {
   void initState() {
     super.initState();
     _initServices();
+    _loadConfig();
+  }
+
+  Future<void> _loadConfig() async {
+    final configFile = await AppConfig.defaultConfigFile();
+    final store = ConfigStore(filePath: configFile);
+    _configStore = store;
+    final loaded = await store.load();
+    if (loaded.isConfigured || loaded.serverUrl.isNotEmpty) {
+      if (!mounted) return;
+      setState(() {
+        _config = loaded;
+        _initServices();
+      });
+    }
   }
 
   void _initServices() {
@@ -50,6 +66,7 @@ class _MocamboAppState extends State<MocamboApp> {
       _webDavSync.close();
       _initServices();
     });
+    _configStore?.save(newConfig);
   }
 
   Future<void> _handleScanMedia() async {

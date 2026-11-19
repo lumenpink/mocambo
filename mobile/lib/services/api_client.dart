@@ -14,7 +14,11 @@ class ApiClient {
 
   Map<String, String> get _headers {
     final headers = <String, String>{};
-    if (config.password.isNotEmpty) {
+    if (config.username.isNotEmpty && config.password.isNotEmpty) {
+      final credentials = '${config.username}:${config.password}';
+      headers['Authorization'] =
+          'Basic ${base64.encode(utf8.encode(credentials))}';
+    } else if (config.password.isNotEmpty) {
       headers['Authorization'] = 'Bearer ${config.password}';
     }
     return headers;
