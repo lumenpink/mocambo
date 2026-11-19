@@ -362,4 +362,3 @@ fn test_mobile_config_persistence_and_basic_auth_contract() {
         "settings_page.dart deve sugerir https://mocambo.lohn.in"
     );
 }
-
