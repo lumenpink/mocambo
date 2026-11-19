@@ -1,7 +1,7 @@
 # Especificação Técnica — Ticket #37: Solicitação de Permissões em Runtime e Scan Abrangente da Galeria
 
 - **Ticket**: [#37](https://gambi.2lp.in/lumen/mocambo/issues/37)
-- **Status**: Fase 3 - Especificação
+- **Status**: Concluído (Fase 9)
 - **Data**: 2026-11-19
 - **Autor**: Lumen Pink & Antigravity
 
@@ -54,9 +54,9 @@ Em `mobile/lib/services/permission_service.dart`:
 
 ## 3. Critérios de Aceite DD-TDD
 
-- [ ] **Red Test:** Teste em `tests/mobile_contract_test.rs` validando que:
+- [x] **Red Test:** Teste em `tests/mobile_contract_test.rs` validando que:
   - `MainActivity.kt` implementa o canal `"in.twolp.mocambo/permissions"` com suporte a runtime permissions.
   - `mobile/lib/services/permission_service.dart` existe e possui `requestStoragePermissions`.
   - `mobile/lib/main.dart` solicita permissões antes de escanear e lista múltiplos diretórios canônicos (`/storage/emulated/0`).
-- [ ] **Green Implementation:** Implementar em `MainActivity.kt`, `permission_service.dart`, `media_scanner.dart` e `main.dart`.
-- [ ] **Quality Gate:** Suite de testes em Rust aprovada, `cargo fmt` e `cargo clippy` sem warnings.
+- [x] **Green Implementation:** Implementar em `MainActivity.kt`, `permission_service.dart`, `media_scanner.dart` e `main.dart`.
+- [x] **Quality Gate:** Suite de testes em Rust aprovada, `cargo fmt` e `cargo clippy` sem warnings.
