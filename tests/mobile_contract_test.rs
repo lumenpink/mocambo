@@ -318,3 +318,48 @@ fn test_android_namespace_and_kotlin_package_contract() {
         "MainActivity.kt deve declarar package `in`.twolp.mocambo com crases de escape"
     );
 }
+
+#[test]
+fn test_mobile_config_persistence_and_basic_auth_contract() {
+    let app_config_path = Path::new("mobile/lib/config/app_config.dart");
+    assert!(app_config_path.exists());
+    let app_config = fs::read_to_string(app_config_path).unwrap();
+    assert!(
+        app_config.contains("defaultConfigFile"),
+        "app_config.dart deve conter helper defaultConfigFile()"
+    );
+
+    let main_path = Path::new("mobile/lib/main.dart");
+    let main_code = fs::read_to_string(main_path).unwrap();
+    assert!(
+        main_code.contains("ConfigStore"),
+        "main.dart deve instanciar ConfigStore"
+    );
+    assert!(
+        main_code.contains(".load()"),
+        "main.dart deve carregar configuracoes persistentes com .load()"
+    );
+    assert!(
+        main_code.contains(".save("),
+        "main.dart deve salvar configuracoes duraveis com .save()"
+    );
+
+    let api_client_code = fs::read_to_string("mobile/lib/services/api_client.dart").unwrap();
+    assert!(
+        api_client_code.contains("Basic "),
+        "api_client.dart deve enviar Authorization: Basic"
+    );
+
+    let webdav_code = fs::read_to_string("mobile/lib/services/webdav_sync.dart").unwrap();
+    assert!(
+        webdav_code.contains("Basic "),
+        "webdav_sync.dart deve enviar Authorization: Basic"
+    );
+
+    let settings_code = fs::read_to_string("mobile/lib/views/settings_page.dart").unwrap();
+    assert!(
+        settings_code.contains("mocambo.lohn.in"),
+        "settings_page.dart deve sugerir https://mocambo.lohn.in"
+    );
+}
+
