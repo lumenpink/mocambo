@@ -1,7 +1,7 @@
 # Especificação Técnica — Ticket #36: Persistência de Ajustes e Autenticação HTTP Basic no Client Móvel
 
 - **Ticket**: [#36](https://gambi.2lp.in/lumen/mocambo/issues/36)
-- **Status**: Fase 3 - Especificação
+- **Status**: Concluído (Fase 9)
 - **Data**: 2026-11-19
 - **Autor**: Lumen Pink & Antigravity
 
@@ -51,9 +51,9 @@ if (config.password.isNotEmpty && config.username.isNotEmpty) {
 
 ## 3. Critérios de Aceite DD-TDD
 
-- [ ] **Red Test:** Teste em `tests/mobile_contract_test.rs` validando que:
+- [x] **Red Test:** Teste em `tests/mobile_contract_test.rs` validando que:
   - `app_config.dart` possui `defaultConfigFile` e `ConfigStore`.
   - `api_client.dart` e `webdav_sync.dart` utilizam `Basic ` na montagem do cabeçalho de autenticação.
   - `main.dart` invoca carregamento durável no `initState` e salvamento no `_updateConfig`.
-- [ ] **Green Implementation:** Implementar em `mobile/lib/config/app_config.dart`, `mobile/lib/services/api_client.dart`, `mobile/lib/services/webdav_sync.dart`, `mobile/lib/views/settings_page.dart` e `mobile/lib/main.dart`.
-- [ ] **Quality Gate:** Suite de testes em Rust aprovada, `cargo fmt` e `cargo clippy` sem warnings.
+- [x] **Green Implementation:** Implementar em `mobile/lib/config/app_config.dart`, `mobile/lib/services/api_client.dart`, `mobile/lib/services/webdav_sync.dart`, `mobile/lib/views/settings_page.dart` e `mobile/lib/main.dart`.
+- [x] **Quality Gate:** Suite de testes em Rust aprovada, `cargo fmt` e `cargo clippy` sem warnings.
