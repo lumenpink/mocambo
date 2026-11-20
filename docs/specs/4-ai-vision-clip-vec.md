@@ -11,7 +11,7 @@
 
 Esta especificação define o subsistema de **visão computacional e busca semântica em imagens** do **Mocambo**, permitindo aos usuários localizar fotografias, ilustrações e recibos através de consultas em linguagem natural (ex: *"pôr do sol na praia"*, *"gato dormindo"*, *"comprovante de pagamento"*) sem a necessidade de etiquetas manuais prévias.
 
-O sistema opera de forma soberana, rodando 100% local na CPU (com suporte a hardware homelab modesto), integrando-se organicamente ao catálogo SQLite WAL e ao pipeline assíncrono de ingestão WebDAV.
+O sistema opera de forma autônoma, rodando 100% local na CPU (com suporte a hardware homelab modesto), integrando-se organicamente ao catálogo SQLite WAL e ao pipeline assíncrono de ingestão WebDAV.
 
 ---
 

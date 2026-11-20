@@ -9,7 +9,7 @@ Em conformidade com a norma GOST, a compilação passa a ser realizada hermetica
    - `flutter build apk --release` (multi-arch `arm64-v8a` e `x86_64`).
    - Binário final produzido em `site/mocambo.apk`.
    - Tamanho esperado: > 15 MiB (contendo motor Flutter e bibliotecas nativas).
-2. **Assinatura Soberana**:
+2. **Assinatura autônoma**:
    - Assinatura com a keystore oficial `~/.android/in_twolp_release.keystore` (SHA-256 digest `7beec8b0a6c7946b04d538543d495a8210ad6cfc1859f42e7180bcfbd38fe582`).
 3. **Distribuição via Cloudflare R2 (`twolp-bucket`)**:
    - Upload para `twolp-bucket/mocambo.apk` via `wrangler r2 object put`.

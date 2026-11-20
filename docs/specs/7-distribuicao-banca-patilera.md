@@ -1,9 +1,9 @@
-# Especificação Técnica — Ticket #7: Distribuição Soberana (Banca & Patilera via CI/CD)
+# Especificação Técnica — Ticket #7: Distribuição autônoma (Banca & Patilera via CI/CD)
 
 ## 1. Contexto & Objetivos
-O Mocambo é o cofre de armazenamento soberano e inteligência multimodal do ecossistema Baquara. Para garantir a acessibilidade e distribuição descentralizada e soberana aos camaradas e usuários:
-1. **Banca (`https://banca.2lp.in`)**: O projeto deve ser indexado no catálogo oficial de software soberano (`data/projects.json`).
-2. **Patilera / Pratilera (`https://banca.2lp.in/pratilera`)**: O aplicativo mobile Flutter (`mocambo/mobile`) deve ser empacotado como APK release, assinado e publicado no repositório F-Droid / Droid-ify soberano.
+O Mocambo é o cofre de armazenamento autônomo e inteligência multimodal do ecossistema Baquara. Para garantir a acessibilidade e distribuição descentralizada e autônoma aos camaradas e usuários:
+1. **Banca (`https://banca.2lp.in`)**: O projeto deve ser indexado no catálogo oficial de software autônomo (`data/projects.json`).
+2. **Patilera / Pratilera (`https://banca.2lp.in/pratilera`)**: O aplicativo mobile Flutter (`mocambo/mobile`) deve ser empacotado como APK release, assinado e publicado no repositório F-Droid / Droid-ify autônomo.
 3. **Diretriz Estrita GOST**: Toda a compilação, validação, empacotamento e sincronização deve ocorrer via automação em **CI/CD** (Forgejo Actions).
 
 ---
@@ -29,7 +29,7 @@ flowchart LR
 ### 3.1. Metadados Fastlane (`mobile/fastlane/metadata/android/`)
 Estrutura padronizada consumida pelo gerador `gerar-pratilera.py`:
 - `in.twolp.mocambo/pt-BR/title.txt`: "Mocambo"
-- `in.twolp.mocambo/pt-BR/short_description.txt`: "Cofre soberano de fotos e arquivos com busca inteligente e offload."
+- `in.twolp.mocambo/pt-BR/short_description.txt`: "Cofre autônomo de fotos e arquivos com busca inteligente e offload."
 - `in.twolp.mocambo/pt-BR/full_description.txt`: "Cliente mobile oficial do Mocambo com sincronização WebDAV, galeria e busca semântica."
 - `in.twolp.mocambo/pt-BR/icon.png`: Ícone oficial em formato RGBA de 8 bits por canal (sanitizado contra restrições SkCodec).
 - Espelhamento idêntico para `en-US`.
@@ -47,7 +47,7 @@ Registro estruturado do projeto:
   "name": "mocambo",
   "forge": "codeberg",
   "slug": "lumenpink/mocambo",
-  "description": "Armazenamento soberano de arquivos com WebDAV, ingestão inteligente e busca semântica",
+  "description": "Armazenamento autônomo de arquivos com WebDAV, ingestão inteligente e busca semântica",
   "topics": [
     "storage",
     "webdav",

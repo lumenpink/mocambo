@@ -21,14 +21,14 @@ RUN cargo build --release --target x86_64-unknown-linux-musl && \
 FROM alpine:3.20
 
 RUN apk add --no-cache ca-certificates tzdata && \
-    addgroup -g 10001 -S mocambo && \
-    adduser -u 10001 -S mocambo -G mocambo && \
+    addgroup -g 1000 -S mocambo && \
+    adduser -u 1000 -S mocambo -G mocambo && \
     mkdir -p /data/storage && \
     chown -R mocambo:mocambo /data
 
 COPY --from=builder /usr/src/mocambo/target/x86_64-unknown-linux-musl/release/mocambo /usr/local/bin/mocambo
 
-USER mocambo:mocambo
+USER 1000:1000
 
 ENV HOST=0.0.0.0 \
     PORT=8080 \

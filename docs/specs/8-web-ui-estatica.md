@@ -5,7 +5,7 @@ Atualmente, o Mocambo expõe suas operações através de protocolo WebDAV, API 
 
 ### Diretrizes de Design
 1. **Zero Runtime Dependencies**: HTML5, CSS3 e Vanilla JavaScript embarcados diretamente no binário Rust via `include_str!`, mantendo a imagem Docker em ~8 MB.
-2. **Estética Brutalista Soberana**: Dark mode nativo com alto contraste (`#0d0f12`, verde esmeralda `#00e699`, âmbar `#ffd700`), tipografia monospaçada e responsividade móvel.
+2. **Estética Brutalista autônoma**: Dark mode nativo com alto contraste (`#0d0f12`, verde esmeralda `#00e699`, âmbar `#ffd700`), tipografia monospaçada e responsividade móvel.
 3. **Explorador & Galeria**: Navegação em árvore de pastas, visualização em lista ou grade (grid) com thumbnails e lightbox modal.
 4. **Busca Integrada**: Campo de busca instantâneo conectado a `/api/search` combinando busca textual FTS5 e busca semântica CLIP.
 

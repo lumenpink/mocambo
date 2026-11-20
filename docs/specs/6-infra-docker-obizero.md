@@ -9,7 +9,7 @@
 
 ## 1. Visão Geral e Propósito
 
-Esta especificação define a arquitetura de **empacotamento estático em contêiner** e a **composição da stack de produção do Mocambo** no nó homelab `obizero` (integrado ao ecossistema soberano Baquara).
+Esta especificação define a arquitetura de **empacotamento estático em contêiner** e a **composição da stack de produção do Mocambo** no nó homelab `obizero` (integrado ao ecossistema autônomo Baquara).
 
 O objetivo é disponibilizar o backend do Mocambo em uma imagem Docker minimalista, auto-contida, estática (`x86_64-unknown-linux-musl`), com tamanho inferior a 25 MB, roteada através do proxy reverso Caddy sob o domínio `vault.{$DOMAIN:lohn.in}` com proteção granular da VPN Tailscale e rota pública de compartilhamento.
 

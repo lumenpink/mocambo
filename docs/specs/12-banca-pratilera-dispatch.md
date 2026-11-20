@@ -2,7 +2,7 @@
 
 ## 1. Contexto & Objetivos
 O aplicativo Flutter do Mocambo é empacotado hermeticamente e distribuído no Cloudflare R2 (`twolp-bucket/mocambo.apk` / `https://bucket.2lp.in/mocambo.apk`).
-Para assegurar que o catálogo da loja soberana Pratilera (`banca`) permaneça continuamente atualizado a cada novo build na branch `main`:
+Para assegurar que o catálogo da loja autônoma Pratilera (`banca`) permaneça continuamente atualizado a cada novo build na branch `main`:
 1. O pipeline de distribuição em `.forgejo/workflows/distribution.yml` e o script `scripts/package-apk.sh` devem disparar a re-geração do índice da Banca através da API de workflows do Codeberg.
 2. A comunicação deve ser autenticada via token de automação `CODEBERG_TOKEN`.
 

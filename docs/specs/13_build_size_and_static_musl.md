@@ -6,7 +6,7 @@
 - **Alinhamento:** GOST 1.5.0 (Rust)
 
 ## 1. Contexto & Motivação
-O Mocambo (`mocambo`) é o motor soberano de armazenamento em nuvem pessoal e servidor WebDAV em Rust.
+O Mocambo (`mocambo`) é o motor autônomo de armazenamento em nuvem pessoal e servidor WebDAV em Rust.
 Para garantir o menor footprint de armazenamento e total independência de bibliotecas dinâmicas do sistema:
 1. Declara-se o perfil `[profile.release]` focado em otimização de tamanho e performance (`opt-level = 3`, `lto = "fat"`, `codegen-units = 1`, `panic = "abort"`, `strip = true`).
 2. Configura-se `.cargo/config.toml` forçando o linking estático da C runtime (`target-feature=+crt-static`) para targets musl.

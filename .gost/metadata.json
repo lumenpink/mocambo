@@ -1,0 +1,21 @@
+{
+  "schema_version": "1.0.0",
+  "slug": "mocambo",
+  "title": "Mocambo",
+  "site_type": "app",
+  "tagline": "Armazenamento em nuvem pessoal, motor WebDAV e descarregamento inteligente",
+  "summary": "Cofre autônomo de armazenamento em nuvem pessoal, motor WebDAV e busca semântica em Rust puro.",
+  "abstract": "O Mocambo é um serviço de armazenamento autônomo e cofre de fotos com motor WebDAV integrado, catalogação semântica e suporte a clientes móveis e desktop.",
+  "tags": [
+    "mocambo",
+    "cloud",
+    "webdav",
+    "storage",
+    "rust"
+  ],
+  "icon": "🏰",
+  "theme": {
+    "bg_color": "#181825",
+    "accent_color": "#fab387"
+  }
+}

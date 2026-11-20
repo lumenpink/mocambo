@@ -1,0 +1,8 @@
+[binaries]
+target = "banca"
+
+[containers]
+target = "gambi"
+
+[sites]
+target = "cloudflare-pages"

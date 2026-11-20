@@ -18,7 +18,7 @@ Para que a Natasha compreenda os motivos de cada escolha e não reintroduza dív
 - **Alternativa Descartada A:** Instalar Flutter dinamicamente no container `gost-ci-cross`.
   - *Motivo do Descarte:* Quebra a hermeticidade, infla o tempo de CI com downloads repetitivos de gigabytes e viola o isolamento de ambientes da norma GOST.
 - **Alternativa Descartada B:** Manter build de APK apenas manual em máquina de desenvolvimento.
-  - *Motivo do Descarte:* Quebra o princípio da entrega contínua soberana; a cada release ou push na `main`, a loja ficaria defasada caso a pessoa mantenedora esquecesse do upload manual.
+  - *Motivo do Descarte:* Quebra o princípio da entrega contínua autônoma; a cada release ou push na `main`, a loja ficaria defasada caso a pessoa mantenedora esquecesse do upload manual.
 - **Escolha Adotada:** Criar o job `deploy-apk` no `.forgejo/workflows/ci.yml` rodando exclusivamente no container oficial `gambi.2lp.in/lumen/gost-ci-flutter:latest`, onde Android SDK 34, OpenJDK 17 e Flutter SDK estável já se encontram pré-aquecidos.
 
 ### Decisão 2: Derivação canônica do `versionCode` no Android

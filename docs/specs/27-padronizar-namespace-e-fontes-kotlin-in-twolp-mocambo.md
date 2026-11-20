@@ -12,7 +12,7 @@
 
 Padronizar a estrutura do pacote Android do aplicativo mobile do Mocambo (`mobile/android`), alinhando o `namespace` Gradle e os fontes Kotlin com o identificador canônico de domínio reverso `in.twolp.mocambo`, já consolidado nos aplicativos irmãos `lauda` e `lacraia`.
 
-Historicamente, o `applicationId` já estava definido como `in.twolp.mocambo` no `build.gradle.kts`, mas o `namespace` Gradle e o diretório Kotlin haviam sido invertidos para `twolp.in.mocambo` para evitar a colisão com a palavra reservada `in` da linguagem Kotlin. Esta divergência gera inconsistência arquitetural e quebra as verificações centralizadas do ecossistema soberano.
+Historicamente, o `applicationId` já estava definido como `in.twolp.mocambo` no `build.gradle.kts`, mas o `namespace` Gradle e o diretório Kotlin haviam sido invertidos para `twolp.in.mocambo` para evitar a colisão com a palavra reservada `in` da linguagem Kotlin. Esta divergência gera inconsistência arquitetural e quebra as verificações centralizadas do ecossistema autônomo.
 
 ---
 

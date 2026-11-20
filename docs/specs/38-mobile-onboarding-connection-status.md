@@ -32,7 +32,7 @@ Em `mobile/lib/views/gallery_page.dart`:
   - `final String? syncProgressMessage;`
   - `final VoidCallback? onOpenSettings;`
 - Exibir card de onboarding no topo de `body` quando `!config.isConfigured`:
-  - Ícone de nuvem, mensagem explicativa sobre a soberania dos dados e botão `Configurar Servidor`.
+  - Ícone de nuvem, mensagem explicativa sobre a autonomia dos dados e botão `Configurar Servidor`.
 - Exibir chip/faixa compacta de status quando configurado, indicando o estado atual (`Pronto`, `Sincronizando...`).
 
 ### 2.2 Controle de Fluxo em `main.dart`

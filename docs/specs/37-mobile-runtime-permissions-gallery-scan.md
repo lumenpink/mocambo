@@ -15,7 +15,7 @@ A causa raiz identificada compreende três fatores:
 2. **Scan Incompleto com Interrupção Prematura:** O método `_handleScanMedia` possuía uma instrução `break` no primeiro diretório com arquivos e listava apenas `/sdcard/DCIM/Camera` e `/sdcard/Pictures`, ignorando os caminhos canônicos do Android `/storage/emulated/0/...` (incluindo Downloads, WhatsApp e Screenshots).
 3. **Falta de Auto-Scan no Startup:** O aplicativo não disparava o scan da galeria ao ser inicializado após carregar o estado, dependendo de ação manual não intuitiva.
 
-Esta especificação resolve tais gargalos com arquitetura limpa, soberana e livre de dependências externas frágeis.
+Esta especificação resolve tais gargalos com arquitetura limpa, autônoma e livre de dependências externas frágeis.
 
 ---
 
