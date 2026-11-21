@@ -95,12 +95,16 @@ fn test_ci_cd_docker_build_and_obizero_deploy() {
         ci_content.contains("gambi.2lp.in/lumen/mocambo:latest"),
         "Workflow ci.yml deve publicar a imagem gambi.2lp.in/lumen/mocambo:latest"
     );
+    // Publicação da imagem no registry sem reset direto via SSH (CD gerenciado pelo Kombinat)
     assert!(
-        ci_content.contains("cd ~/stacks/mocambo"),
-        "Workflow ci.yml deve navegar para ~/stacks/mocambo no obizero"
+        !ci_content.contains("cd ~/stacks/mocambo"),
+        "Workflow ci.yml não deve executar deploy direto via SSH no obizero"
     );
+    let delivery_path = Path::new(".gost/delivery.toml");
+    assert!(delivery_path.exists(), ".gost/delivery.toml deve existir");
+    let delivery = fs::read_to_string(delivery_path).unwrap();
     assert!(
-        ci_content.contains("docker compose -f compose.yml up -d --no-build mocambo"),
-        "Workflow ci.yml deve reiniciar o container mocambo no obizero"
+        delivery.contains("[services]") && delivery.contains("node = \"obizero\""),
+        ".gost/delivery.toml deve declarar [services] apontando para node = obizero"
     );
 }
