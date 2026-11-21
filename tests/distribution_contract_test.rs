@@ -219,9 +219,9 @@ fn test_ci_deploy_apk_job_contract() {
         .split("deploy-apk:")
         .nth(1)
         .expect("deploy-apk ausente")
-        .split("trigger-pratilera:")
+        .split("build-and-deploy-docker:")
         .next()
-        .expect("trigger-pratilera ausente");
+        .expect("build-and-deploy-docker ausente");
     assert!(
         !deploy_apk_block.contains("container:"),
         "O job deploy-apk não deve declarar container no job level para não quebrar Node.js no runner act"
@@ -231,25 +231,28 @@ fn test_ci_deploy_apk_job_contract() {
         "deploy-apk deve realizar pull explícito da imagem gost-ci-flutter para execução via Docker host"
     );
 
-    // Requisito 2: Upload resiliente no Cloudflare R2 com validação de integridade
+    // Requisito 2: Upload via Forgejo Generic Packages (orquestrado pelo Kombinat) com validação de integridade
     assert!(
-        workflow.contains("twolp-bucket/mocambo.apk"),
-        "deploy-apk deve orquestrar upload para twolp-bucket/mocambo.apk"
+        deploy_apk_block.contains("cccp package upload"),
+        "deploy-apk deve publicar o APK via cccp package upload para o Kombinat"
+    );
+    assert!(
+        deploy_apk_block.contains("--filename mocambo.apk"),
+        "deploy-apk deve preservar o nome canônico mocambo.apk no Generic Package"
     );
     assert!(
         deploy_apk_block.contains("10485760"),
         "deploy-apk deve validar o tamanho mínimo de 10MB do APK antes do upload"
     );
 
-    // Requisito 3: Encadeamento de notificação dependente de deploy-apk
+    // Requisito 3: Ausência de deploy direto legado (R2 / trigger-pratilera)
     assert!(
-        workflow.contains("trigger-pratilera:"),
-        "O disparo de webhook da Pratilera deve residir em job desacoplado 'trigger-pratilera'"
+        !workflow.contains("twolp-bucket/mocambo.apk"),
+        "ci.yml não deve fazer upload direto para R2 (CD centralizada no Kombinat)"
     );
     assert!(
-        workflow.contains("needs: [deploy-apk]")
-            || workflow.contains("needs: [deploy-banca, deploy-apk]"),
-        "trigger-pratilera deve aguardar a conclusão com sucesso do deploy-apk"
+        !workflow.contains("trigger-pratilera:"),
+        "ci.yml não deve conter job legado trigger-pratilera"
     );
 }
 

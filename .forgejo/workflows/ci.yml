@@ -196,10 +196,7 @@ jobs:
         env:
           GAMBI_2LP_IN_TOKEN: ${{ secrets.REGISTRY_TOKEN || secrets.GAMBI_2LP_IN_TOKEN || secrets.FORGEJO_TOKEN || secrets.GIT_2LP_TOKEN }}
         run: |
-          for apk in mobile/build/app/outputs/flutter-apk/*.apk build/app/outputs/flutter-apk/*.apk dist/*.apk; do
-            [ -f "$apk" ] || continue
-            cccp package upload "$apk" --filename mocambo.apk
-          done
+          cccp package upload site/mocambo.apk --filename mocambo.apk
 
   build-and-deploy-docker:
     name: "Container — Build & CD (obizero)"

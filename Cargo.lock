@@ -862,7 +862,7 @@ dependencies = [
 
 [[package]]
 name = "mocambo"
-version = "0.3.0-dev.87+20261119.337d6c4"
+version = "0.3.0-dev.90+20261120.2efda3e"
 dependencies = [
  "axum",
  "bytes",
