@@ -1,8 +1,16 @@
 [binaries]
 target = "banca"
 
-[containers]
-target = "gambi"
+[mobile]
+target = "pratilera"
+app_id = "org.pink.mocambo"
 
 [sites]
 target = "cloudflare-pages"
+domain = "mocambo.2lp.in"
+dir = "site"
+
+[services]
+stack = "mocambo"
+node = "obizero"
+healthz = "http://127.0.0.1:8080/healthz"
