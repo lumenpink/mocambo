@@ -53,7 +53,7 @@ jobs:
   deploy-banca:
     name: "Build & Publish Mocambo Multiarch to Banca"
     runs-on: ubuntu-latest
-    needs: [test]
+    needs: [test, deploy-apk]
     if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v')
     container:
       image: gambi.2lp.in/lumen/gost-ci-cross:latest
@@ -167,6 +167,21 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: "Determine Version & Release Metadata"
+        id: meta
+        run: |
+          RAW_VER=$(cat VERSION 2>/dev/null || grep -m1 '^version =' Cargo.toml | cut -d '"' -f2)
+          COMMIT_HASH=$(git rev-parse --short HEAD)
+          DATE_TAG=$(date -u +%Y%m%d)
+
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+            TAG_VER="${GITHUB_REF#refs/tags/v}"
+            echo "version=${TAG_VER}" >> $GITHUB_OUTPUT
+          else
+            NIGHTLY_VER="${RAW_VER}-dev.${DATE_TAG}.${COMMIT_HASH}"
+            echo "version=${NIGHTLY_VER}" >> $GITHUB_OUTPUT
+          fi
+
       - name: "Pull Docker Flutter CI Image"
         run: |
           echo "★ Puxando imagem hermética gost-ci-flutter para compilação..."
@@ -196,7 +211,8 @@ jobs:
         env:
           GAMBI_2LP_IN_TOKEN: ${{ secrets.REGISTRY_TOKEN || secrets.GAMBI_2LP_IN_TOKEN || secrets.FORGEJO_TOKEN || secrets.GIT_2LP_TOKEN }}
         run: |
-          cccp package upload site/mocambo.apk --filename mocambo.apk
+          VERSION="${{ steps.meta.outputs.version }}"
+          cccp package upload site/mocambo.apk --filename mocambo.apk --version "$VERSION"
 
   build-and-deploy-docker:
     name: "Container — Build & CD (obizero)"
