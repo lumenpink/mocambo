@@ -3,7 +3,7 @@ target = "banca"
 
 [mobile]
 target = "pratilera"
-app_id = "org.pink.mocambo"
+app_id = "in.twolp.mocambo"
 
 [sites]
 target = "cloudflare-pages"
